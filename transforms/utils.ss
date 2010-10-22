@@ -12,11 +12,16 @@
          true?
          false?
          tagged-list?
-         gensym)
+         gensym
+         curry)
  
  (import (_srfi :1)
          (rnrs)
          (only (ikarus) gensym))
+
+ (define (curry fun . const-args)
+   (lambda args
+     (apply fun (append const-args args))))
  
  (define rest cdr)
  

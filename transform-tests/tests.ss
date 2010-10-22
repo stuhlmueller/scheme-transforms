@@ -36,6 +36,9 @@
        bar)
      (letrec ([make-plus (lambda (n) (lambda (x) (+ x n)))]
               [plus2 (make-plus 2)])
-       (plus2 (plus2 3)))))
+       (plus2 (plus2 3)))
+     (letrec ([a (list (lambda () b))]
+              [b (list (lambda () a))])
+       (list a ((car b)) b ((car a))))))
 
  )
