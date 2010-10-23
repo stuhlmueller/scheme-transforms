@@ -30,3 +30,12 @@
     (lambda (f)
       (lambda (k . args)
         (k (apply f args))))))
+
+;; from cps-letrec:
+(begin
+  (when (not (tagged-list? val 'church-make-stateless-xrp))
+        (for-each display (list "WARNING: potential non-proc in letrec -- " val "\n")))
+  (let ([k1 (ngensym 'klr2)])
+    `(,f (call/cc
+          (lambda (,k1)
+            ,(cps val k1))))))

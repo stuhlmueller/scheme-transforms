@@ -89,18 +89,8 @@
                                      ,(cps fbody k1))))]
                            [(symbol? val)
                             `(,f ,val)]
-                           ;; generates func that takes care of cont; but takes args
-                           ;; that need to be evaluated before m-s-xrp is called
-                           ;; [else (error val "cps-letrec: cannot handle val")]
                            [else
-                            (begin
-                              (when (not (tagged-list? val 'church-make-stateless-xrp))
-                                    (for-each display (list "WARNING: potential non-proc in letrec -- " val "\n")))
-                              (let ([k1 (ngensym 'klr2)])
-                                `(,f (call/cc
-                                      (lambda (,k1)
-                                        ,(cps val k1))))))]
-                           )))
+                            (error val "cps-letrec: binding values must be functions!")])))
                  (letrec->defns e))
      ,(cps (letrec->body e) k)))
 
