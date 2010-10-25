@@ -24,23 +24,23 @@
      (lambda (f) (f 1 2))
      ((lambda (f) (f 1 2)) cons)
      ((lambda (f) (f 1 2 3)) (lambda (x y z) (list z y x)))
-     (letrec ([even? (lambda (n) (if (= n 0) #t (odd? (- n 1))))]
-              [odd? (lambda (n) (if (= n 0) #f (even? (- n 1))))])
-       (even? 10))
-     (letrec ([baz foo]
+     (letrec ([my-even? (lambda (n) (if (= n 0) #t (my-odd? (- n 1))))]
+              [my-odd? (lambda (n) (if (= n 0) #f (my-even? (- n 1))))])
+       (my-even? 10))
+     (letrec ([baz (lambda () foo)]
               [foo (lambda () (bar))]
               [bar (lambda () (list foo bar baz 1))])
        (baz))
-     ;; disallowed in input language:
-     ;; (letrec ([foo (list 1 2 3)]
-     ;;          [bar (list 1 2 foo)])
-     ;;   bar)
-     ;; (letrec ([make-plus (lambda (n) (lambda (x) (+ x n)))]
-     ;;          [plus2 (make-plus 2)])
-     ;;   (plus2 (plus2 3)))
-     ;; (letrec ([a (list (lambda () b))]
-     ;;          [b (list (lambda () a))])
-     ;;   (list a ((car b)) b ((car a))))
+     (letrec ([foo (list 1 2 3)]
+              [bar (list 1 2 foo)])
+       bar)
+     (letrec ([make-plus (lambda (n) (lambda (x) (+ x n)))]
+              [plus2 (make-plus 2)])
+       (plus2 (plus2 3)))
+     (letrec ([a (list (lambda () b))]
+              [b (list (lambda () a))])
+       (list a ((car b)) b ((car a))))
      ))
 
  )
+

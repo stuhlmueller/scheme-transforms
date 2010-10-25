@@ -39,3 +39,21 @@
     `(,f (call/cc
           (lambda (,k1)
             ,(cps val k1))))))
+
+;; this version of cps-letrec makes use of letrec in the underlying scheme
+(define (cps-letrec e k)
+  `(letrec ,(map (lambda (def)
+                   (let ([f (first def)]
+                         [val (second def)])
+                     (cond [(lambda? val)
+                            (let ([vs (second val)]
+                                  [fbody (third val)]
+                                  [k1 (ngensym 'klr)])
+                              `(,f (lambda (,k1 . ,vs)
+                                     ,(cps fbody k1))))]
+                           [(symbol? val)
+                            `(,f ,val)]
+                           [else
+                            (error val "cps-letrec: binding values must be functions!")])))
+                 (letrec->defns e))
+     ,(cps (letrec->body e) k)))

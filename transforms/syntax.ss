@@ -30,7 +30,7 @@
          set->var
          set->val
          def->name
-         def->lambda
+         def->val
          mem?
          lambda-parameters
          lambda-body
@@ -54,7 +54,7 @@
  (define letrec->defns second)
  (define letrec->body third)
  (define def->name first)
- (define def->lambda second)
+ (define def->val second)
  (define application? pair?)
  (define app->opt first)
  (define app->ops rest)

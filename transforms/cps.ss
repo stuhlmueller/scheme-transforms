@@ -22,6 +22,7 @@
          (_srfi :1) ; lists
          (transforms syntax)
          (transforms utils)
+         (transforms desugar-letrec)
          (only (ikarus) eval environment parameterize make-parameter pretty-print))
 
  (define primitives (make-parameter '()))
@@ -34,12 +35,13 @@
 
  ;; this is for compilation to scheme with letrec
  (define (with-cps-primitives e ps)
-   `(letrec ([cps-prim (lambda (f)
-                         (lambda (k . args)
-                           (k (apply f args))))]
-             ,@(map (lambda (p) `(,(cps-rename p) (cps-prim ,p)))
-                   ps))
-      ,e))
+   (desugar-letrec
+    `(letrec ([cps-prim (lambda (f)
+                          (lambda (k . args)
+                            (k (apply f args))))]
+              ,@(map (lambda (p) `(,(cps-rename p) (cps-prim ,p)))
+                     ps))
+       ,e)))
 
  (define (cps e k)
    ((cps-converter e) e k))
@@ -59,6 +61,7 @@
          [(letrec? e) cps-letrec]
          [(begin? e) cps-begin]
          [(if? e) cps-if]
+         [(set? e) cps-set]
          [(application? e)
           (if (primitive? (app->opt e))
               cps-primitive-application
@@ -76,23 +79,14 @@
     `(,k (lambda (,k1 . ,(lambda->args e))
            ,(cps (lambda->body e) k1)))))
 
-;; this version of cps-letrec makes use of letrec in the underlying scheme
 (define (cps-letrec e k)
-  `(letrec ,(map (lambda (def)
-                   (let ([f (first def)]
-                         [val (second def)])
-                     (cond [(lambda? val)
-                            (let ([vs (second val)]
-                                  [fbody (third val)]
-                                  [k1 (ngensym 'klr)])
-                              `(,f (lambda (,k1 . ,vs)
-                                     ,(cps fbody k1))))]
-                           [(symbol? val)
-                            `(,f ,val)]
-                           [else
-                            (error val "cps-letrec: binding values must be functions!")])))
-                 (letrec->defns e))
-     ,(cps (letrec->body e) k)))
+  (cps (desugar-letrec e) k))
+
+(define (cps-set e k)
+  (let ([r (ngensym 'r)])
+    (cps (set->val e)
+         `(lambda (,r)
+            (,k (set! ,(set->var e) ,r))))))
 
 (define (cps-begin e k)
   (if (= (length e) 2)

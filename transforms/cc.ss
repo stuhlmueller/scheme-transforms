@@ -199,7 +199,7 @@
    (let ([dummy-bindings (map (lambda (binding) `(,(def->name binding) . ',(def->name binding)))
                               bindings)])
      (map (lambda (binding)
-            (close-lambda (def->lambda binding) bound? (append dummy-bindings free)))
+            (close-lambda (def->val binding) bound? (append dummy-bindings free)))
           bindings)))
 
  (define (vector-expr-index v i)

@@ -22,7 +22,7 @@
  (define (curry fun . const-args)
    (lambda args
      (apply fun (append const-args args))))
- 
+
  (define rest cdr)
  
  (define pair cons)
