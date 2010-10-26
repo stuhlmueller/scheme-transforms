@@ -45,8 +45,8 @@
     ((self-evaluating? expr) close-self-evaluating)
     ((lambda? expr) close-lambda)
     ((if? expr) close-if)
-    ;; ((set? expr) close-set)
-    ((letrec? expr) close-letrec)
+    ((set? expr) close-set)
+    ((letrec? expr) (error expr "letrecs should have been desugared into set+lambda!"))
     ((application? expr)
      (let ((op (app->opt expr)))
        (cond ((primitive? op) close-primitive-application)
@@ -145,121 +145,6 @@
        ,@(map (lambda (name)
                 (closure-env-ref name bound? free))
               free-in-expr))))
-
- ;; this version does not support recursion
- ;; (define (close-letrec expr bound? free)
- ;;   (let* ([proc-names (map first (letrec->defns expr))]
- ;;          [letrec-bound? (lambda (v) (or ((bound-predicate proc-names) v)
- ;;                                    (bound? v)))])
- ;;     `(letrec ,(map (lambda (def) (list (first def)
- ;;                                   (convert-closure (second def) letrec-bound? free)))
- ;;                    (letrec->defns expr))
- ;;        ,(convert-closure
- ;;          (letrec->body expr)
- ;;          letrec-bound?
- ;;          free))))
- 
- ;; FIXME: each proc-vectors only needs some free vars, some procs
- ;; how to allow each proc to refer to other procs explicitly?
- ;; - can't use letrec from underlying scheme, since vars in vectors
- ;;   need to refer to other vectors, but letrec only allows recursion for functions
- ;; - can't use (define x '#1=#((lambda () 'a) #1# 1)) since this will quote the whole object
- ;; - can't do self-reference using set! since generated code should be functional
- ;; - could do a y*-combinator transform, but this is probably inefficient
- ;; (define (close-letrec expr bound? free)
- ;;   (let* ([free-in-expr (get-free-vars expr (primitives))]
- ;;          [proc-names ...]
- ;;          [self1 (ngensym 'self)]
- ;;          [self2 (ngensym 'self)]
- ;;          [lr-self-refs (self-refs self2 (append proc-names free-in-expr))]
- ;;          [free-var-vals (map (lambda (name) (closure-env-ref name bound? free)) free-in-expr)]
- ;;          [proc-vectors (map (lambda (ld)
- ;;                               `(vector
- ;;                                 (lambda (,self ,@formals)
- ;;                                   ,(convert-closure
- ;;                                     (lambda->body expr)
- ;;                                     (bound-predicate formals)
- ;;                                     (self-refs self free-in-expr)))
- ;;                                 ,@PROCS
- ;;                                 ,@free-var-vals))
- ;;                             (map second (letrec->defns expr)))])
-     ;; `((lambda (,self1) ((vector-ref ,self1 0) ,self1))
-     ;;   (vector
-     ;;    (lambda (,self2)
-     ;;      ,(convert-closure (letrec->body expr)
-     ;;                        never?
-     ;;                        lr-self-refs))
-     ;;    ,@proc-vectors
-     ;;    ,@free-var-vals))))
-
- ;; can use (close-lambda expr bound? free)
- ;; if free vars are extended with proc names and dummy bindings
- ;; FIXME: does not need to reference all dummy bindings, only the required ones
- (define (bindings->vectors bindings bound? free)
-   (let ([dummy-bindings (map (lambda (binding) `(,(def->name binding) . ',(def->name binding)))
-                              bindings)])
-     (map (lambda (binding)
-            (close-lambda (def->val binding) bound? (append dummy-bindings free)))
-          bindings)))
-
- (define (vector-expr-index v i)
-   (let ([i (list-index (lambda (x) (equal? x i)) v)])
-     (if (equal? i #f)
-         #f
-         (- i 1))))
-
- (define (vectors->refs names vectors)
-   (apply append
-          (map (lambda (subj-name subj-vec)
-                 (filter-map
-                  (lambda (obj-name obj-vec)
-                    (let ([index (vector-expr-index subj-vec `',obj-name)])
-                      (if (equal? index #f)
-                          #f
-                          `(vector-set! ,subj-name ,index ,obj-name))))
-                  names vectors))
-               names vectors)))
- 
- ;; compute for each expression a vector with code, names of free vars + procs;
- ;; initial-vectors: vector definitions without recursive references go here, only placeholders
- ;; vector-references: of the form (vector-set! subj-vector subj-index obj-vector)
- ;;  
- ;; (lambda (A)
- ;;   (letrec ([foo (lambda () (list bar))]
- ;;            [bar (lambda () (list foo))])
- ;;     (foo A)))
- ;; =>
- ;; ((lambda (body-vector foo-vector bar-vector)
- ;;   (begin
- ;;     (vector-set! body-vector 1 foo-vector)
- ;;     (vector-set! body-vector 2 bar-vector)
- ;;     (vector-set! foo-vector 1 bar-vector)
- ;;     (vector-set! bar-vector 1 foo-vector)
- ;;     ((vector-ref body-vector 0) body-vector)))
- ;; (vector (lambda (s1) (list (vector-ref s1 1))) 'foo-vector 'bar-vector)
- ;; (vector (lambda (s2) (list (vector-ref s2 1))) 'bar-vector)
- ;; (vector (lambda (s3) (list (vector-ref s3 1))) 'foo-vector))
- (define (close-letrec expr bound? free)
-   (let* ([proc-names (map first (letrec->defns expr))]
-          [body-fv-names (get-free-vars (letrec->body expr) (append proc-names (primitives)))]
-          [body-fv-vals (map (lambda (name) (closure-env-ref name bound? free)) body-fv-names)]
-          [body-vector-name (ngensym 'body-vector)]
-          [body-vector `(vector (lambda (,body-vector-name)
-                                  ,(convert-closure
-                                    (letrec->body expr)
-                                    never?
-                                    (self-refs body-vector-name (append proc-names body-fv-names))))
-                                ,@(map (lambda (n) `',n) proc-names) ;; temp
-                                ,@body-fv-vals)]
-          [initial-vectors (bindings->vectors (letrec->defns expr) bound? free)]
-          [vector-references (vectors->refs (pair body-vector-name proc-names)
-                                            (pair body-vector initial-vectors))])
-     `((lambda (,body-vector-name ,@proc-names)
-         (begin
-           ,@vector-references
-           ((vector-ref ,body-vector-name 0) ,body-vector-name)))
-       ,body-vector
-       ,@initial-vectors)))
    
  ;; self is a symbol, e.g. self12
  ;; free is the list of variables occuring free in an expression
@@ -277,6 +162,19 @@
                 (car names)
                 `(vector-ref ,self ,ii)
                 env)))))
+
+ (define (closure-env-set name val-expr bound? free)
+  (cond ((primitive? name) (error name "cannot overwrite primitive name!"))
+        ((bound? name) `(set! ,name ,val-expr))
+        ((assq name free) => (lambda (b) `(vector-set! ,@(cddr b) ,val-expr))) ;; FIXME
+        (else (error name "set: unbound identifier"))))
+
+;; FIXME: what to do about this? need to set correct element in self vector
+(define (close-set expr bound? free)
+  (closure-env-set (set->var expr)
+                   (convert-closure (set->val expr) bound? free)
+                   bound?
+                   free))
  
  (define (cc-transform e . verbose)
    (when (not (null? verbose))

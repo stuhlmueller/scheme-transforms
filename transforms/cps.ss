@@ -112,21 +112,22 @@
                        [xs (rest x)])
                    `(,f ,k . ,xs)))))
 
-;; higher-order functions need to pass on continuations correctly
-(define no-override-primitives
-  (list 'church-apply))
- 
-(define (cps-transform sexpr)
-  ;; (pretty-print sexpr)
-  (parameterize ([primitives (lset-difference equal?
-                                              (get-primitives sexpr)
-                                              no-override-primitives)])
-                (begin
-                  ;; (for-each display (list "primitives: " (primitives) "\n"))
-                  (with-cps-primitives
-                   (cps sexpr (let ([v (ngensym 'v)])
-                                `(lambda (,v) ,v)))
-                   (primitives)))))
+(define (cps-transform sexpr . args)
+  (let ([bound-vars (if (null? args) '() (first args))]
+        [cont-primitives (if (or (null? args) (null? (rest args)))
+                             '()
+                             (second args))])
+    ;; (pretty-print sexpr)
+    (parameterize ([primitives (lset-difference equal?
+                                                (get-primitives sexpr)
+                                                (append cont-primitives
+                                                        bound-vars))])
+                  (begin
+                    ;; (for-each display (list "primitives: " (primitives) "\n"))
+                    (with-cps-primitives
+                     (cps sexpr (let ([v (ngensym 'v)])
+                                  `(lambda (,v) ,v)))
+                     (primitives))))))
  
  (define (cps-eval sexpr)
    (eval (cps-transform sexpr)
