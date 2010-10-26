@@ -42,16 +42,18 @@
 
  (define (closure-converter expr)
    (cond
+    ((primitive? expr) close-primitive)
     ((self-evaluating? expr) close-self-evaluating)
     ((lambda? expr) close-lambda)
+    ((begin? expr) (error expr "begins should have been turned into lambdas!"))
     ((if? expr) close-if)
     ((set? expr) close-set)
     ((letrec? expr) (error expr "letrecs should have been desugared into set+lambda!"))
     ((application? expr)
      (let ((op (app->opt expr)))
-       (cond ((primitive? op) close-primitive-application)
-             ((lambda? op) close-lambda-application)
-             (else close-application))))
+       (cond ;; ((primitive? op) close-primitive-application)
+        ((lambda? op) close-lambda-application)
+        (else close-application))))
     (else (error expr "unknown expr type"))))
 
  (define (make-proper-list s)
@@ -104,9 +106,9 @@
           (args (append (app->ops expr) free-in-expr)))
      `((lambda ,formals
          ,(convert-closure
-            (lambda->body op)
-            (bound-predicate formals)
-            '()))
+           (lambda->body op)
+           (bound-predicate formals)
+           '()))
        ,@(close-sequence args bound? free))))
 
  ;; A normal application is converted by looking up the procedure body
@@ -126,7 +128,7 @@
          ((vector-ref ,opname 0)
           ,opname
           ,@(close-sequence (app->ops expr) bound? free))) ,op)))
-    
+ 
 
  ;; A LAMBDA is converted to a closure.  The body is scanned for free
  ;; identifiers that are bound into the closure along with the
@@ -139,13 +141,21 @@
      `(vector
        (lambda (,self ,@formals)
          ,(convert-closure
-            (lambda->body expr)
-            (bound-predicate formals)
-            (self-refs self free-in-expr)))
+           (lambda->body expr)
+           (bound-predicate formals)
+           (self-refs self free-in-expr)))
        ,@(map (lambda (name)
                 (closure-env-ref name bound? free))
               free-in-expr))))
-   
+
+ (define (close-primitive expr bound? free)
+   (let* ((self (ngensym 'self)))
+     `(vector
+       (lambda (,self . params)
+         (apply ,expr params))
+       '()
+       '())))
+ 
  ;; self is a symbol, e.g. self12
  ;; free is the list of variables occuring free in an expression
  ;; this generates an association list
@@ -164,17 +174,20 @@
                 env)))))
 
  (define (closure-env-set name val-expr bound? free)
-  (cond ((primitive? name) (error name "cannot overwrite primitive name!"))
-        ((bound? name) `(set! ,name ,val-expr))
-        ((assq name free) => (lambda (b) `(vector-set! ,@(cddr b) ,val-expr))) ;; FIXME
-        (else (error name "set: unbound identifier"))))
+   (cond ((primitive? name) (error name "cannot overwrite primitive name!"))
+         ((bound? name) `(set! ,name ,val-expr)) ;; this should only match on originally bound vars
+         ((assq name free) => (lambda (b) `(vector-set! ,@(cddr b) ,val-expr))) ;; FIXME
+         (else (error name "set: unbound identifier"))))
 
-;; FIXME: what to do about this? need to set correct element in self vector
-(define (close-set expr bound? free)
-  (closure-env-set (set->var expr)
-                   (convert-closure (set->val expr) bound? free)
-                   bound?
-                   free))
+ ;; FIXME: what to do about this? need to set correct element in self vector
+ ;; cc makes all arguments explicit
+ ;; set! wants to modify arguments in original scope
+ ;; setting explicit arguments will only set them in current scope
+ (define (close-set expr bound? free)
+   (closure-env-set (set->var expr)
+                    (convert-closure (set->val expr) bound? free)
+                    bound?
+                    free))
  
  (define (cc-transform e . verbose)
    (when (not (null? verbose))

@@ -25,7 +25,14 @@
               [b (list (lambda () a))])
        (list a ((car b)) b ((car a))))))
 
+(define (cps-check a b)
+   (cond [(and (procedure? a) (procedure? b)) #t]
+         [(and (pair? a) (pair? b)) (and (cps-check (car a) (car b))
+                                         (cps-check (cdr a) (cdr b)))]
+         [else (equal? a b)]))
+
 (run-tests cps-transform
            cps-eval
+           cps-check
            (append common-test-exprs
                    cps-test-exprs))
