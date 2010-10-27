@@ -6,10 +6,10 @@
 ;; by FA Turbak, DK Gifford, MA Sheldon
 
 ;; input language:
-;; self-eval | primitive | lambda | letrec | begin | if | set! | (A B)
+;; self-eval | primitive | lambda | begin | if | set! | (A B)
 
 ;; output language:
-;; self-eval | primitive | lambda | letrec | begin | if | make-cell | set-cell! | (A B)
+;; self-eval | primitive | lambda | begin | if | (A B)
 
 (library
 
@@ -23,12 +23,8 @@
          (transforms utils))
 
  (define (mutated-free-vars e)
-   (cond [(self-evaluating? e) '()] ;; also captures primitives
-         [(letrec? e)
-          (except (append (set-join (map (compose mutated-free-vars def->val)
-                                         (letrec->defns e)))
-                          (mutated-free-vars (letrec->body e)))
-                  (map def->name (letrec->defns e)))]
+   (cond [(primitive? e) '()]
+         [(self-evaluating? e) '()]
          [(set? e) (pair (set->var e)
                          (mutated-free-vars (set->val e)))]
          [(lambda? e) (except (mutated-free-vars (lambda->body e))
@@ -70,7 +66,6 @@
    (cond [(symbol? e) amt-ref]
          [(self-evaluating? e) amt-self-evaluating]
          [(lambda? e) amt-lambda]
-         [(letrec? e) amt-letrec]
          [(set? e) amt-set]
          [(or (begin? e) (if? e)) amt-subexprs]
          [(application? e) amt-application]
@@ -87,28 +82,9 @@
  (define (amt-lambda vars e)
    (let ([formals (listify (lambda->args e))])
      (let-values ([(ism isu) (partition-vars formals (list (lambda->body e)))])
-       ;; (pe "vars: " vars "\n"
-       ;;     "e: " e "\n"
-       ;;     "mfv: " (mutated-free-vars (lambda->body e)) "\n"
-       ;;     "ism: " ism "\n"
-       ;;     "isu: " isu "\n\n")
        `(lambda ,(lambda->args e)
-          ,(wrap-cells ism (amt (except (both formals ism) isu)
+          ,(wrap-cells ism (amt (except (union vars ism) isu)
                                 (lambda->body e)))))))
-
- (define (amt-letrec vars e)
-   (let-values ([(ism isu)
-                 (partition-vars (map def->name (letrec->defns e))
-                                 (pair (letrec->body e)
-                                       (map def->val (letrec->defns e))))])
-     (let ([new-vars (except (union vars ism) isu)])
-       `(letrec ,(map (lambda (def)
-                        `(,(def->name def)
-                          ,(maybe-cell (def->name def)
-                                       ism
-                                       (amt new-vars (def->val def)))))
-                      (letrec->defns e))
-          ,(amt new-vars (letrec->body e))))))
 
  (define (amt-set vars e)
    (if (primitive? (set->var e))
@@ -123,8 +99,15 @@
  (define (amt-application vars e)
    (map (curry amt vars) e))
 
+ (define (with-amt-primitives e)
+   `((lambda (make-cell set-cell! cell-ref)
+       ,e)
+     (lambda (v) (cons 'cell v))
+     (lambda (c v) (set-cdr! c v))
+     (lambda (c) (cdr c))))
+
  (define (assignment-transform e)
    (parameterize ([primitives (get-primitives e)])   
-                 (amt '() e)))
+                 (with-amt-primitives (amt '() e))))
 
  )

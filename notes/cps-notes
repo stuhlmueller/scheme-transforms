@@ -57,3 +57,11 @@
                             (error val "cps-letrec: binding values must be functions!")])))
                  (letrec->defns e))
      ,(cps (letrec->body e) k)))
+
+(desugar-letrec
+ `(letrec ([cps-prim (lambda (f)
+                       (lambda (k . args)
+                         (k (apply f args))))]
+           ,@(map (lambda (p) `(,(cps-rename p) (cps-prim ,p)))
+                  ps))
+    ,e)))

@@ -30,7 +30,8 @@
          format
          primitives
          primitive?
-         pe)
+         pe
+         never?)
  
  (import (_srfi :1)
          (rnrs)
@@ -56,9 +57,11 @@
    (lambda args
      (apply fun (append const-args args))))
 
- (define (compose f g)
-   (lambda args
-     (f (apply g args))))
+ (define (compose . fns)
+  (define (make-chain fn chain)
+    (lambda args
+      (call-with-values (lambda () (apply fn args)) chain)))
+  (reduce make-chain values fns))
 
  (define rest cdr)
  
@@ -104,5 +107,7 @@
 
  (define (set-join lsts)
    (delete-duplicates (apply append lsts)))
+
+ (define (never? _) #f)
 
  )

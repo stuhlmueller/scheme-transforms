@@ -5,10 +5,10 @@
 ;; based on http://github.com/darius/selfcentered
 
 ;; input language:
-;; self-eval | primitive | lambda | letrec | begin | if | make-cell | set-cell! | (A B)
+;; self-eval | primitive | lambda | begin | if | (A B)
 
 ;; output language:
-;; self-eval | primitive | lambda | make-cell | set-cell! | if | (A B)
+;; self-eval | primitive | lambda | if | (A B)
 
 (library
 
@@ -19,20 +19,19 @@
  (import (rnrs)
          (_srfi :1) ; lists
          (transforms syntax)
-         (transforms utils)
-         (transforms desugar-letrec))
+         (transforms utils))
 
  (define (cps-rename s)
    (string->symbol (string-append "cps-" (symbol->string s))))
 
  (define (with-cps-primitives e ps)
-   (desugar-letrec
-    `(letrec ([cps-prim (lambda (f)
-                          (lambda (k . args)
-                            (k (apply f args))))]
-              ,@(map (lambda (p) `(,(cps-rename p) (cps-prim ,p)))
-                     ps))
-       ,e)))
+   `((lambda (cps-prim)
+       ((lambda ,(map cps-rename ps)
+          ,e)
+        ,@(map (lambda (p) `(cps-prim ,p)) ps)))
+     (lambda (f)
+       (lambda (k . args)
+         (k (apply f args))))))
 
  ;; e, k -> e
  (define (cps e k)
@@ -49,10 +48,10 @@
 
  ;; e -> (e, k -> e)
  (define (cps-converter e)
-   (cond [(primitive? e) cps-primitive]
+   (cond [(letrec? e) (error e "letrec should have been desugared!")]
+         [(primitive? e) cps-primitive]
          [(self-evaluating? e) cps-self-eval]
          [(lambda? e) cps-lambda]
-         [(letrec? e) cps-letrec]
          [(begin? e) cps-begin]
          [(if? e) cps-if]
          [(set? e) cps-set]
@@ -72,9 +71,6 @@
   (let ([k1 (ngensym 'kl)])
     `(,k (lambda (,k1 . ,(lambda->args e))
            ,(cps (lambda->body e) k1)))))
-
-(define (cps-letrec e k)
-  (cps (desugar-letrec e) k))
 
 (define (cps-set e k)
   (let ([r (ngensym 'r)])

@@ -5,10 +5,10 @@
 ;; based on goo.gl/HdsQ
 
 ;; input language:
-;; primitive | self-eval | lambda | if | make-cell | set-cell! | (A B)
+;; self-eval | primitive | lambda | if | (A B)
 
 ;; output language:
-;; primitive | self-eval | lambda | if | make-cell | set-cell! | (A B)
+;; self-eval | primitive | lambda | if | (A B)
 
 (library
 
@@ -20,8 +20,6 @@
          (_srfi :1) ; lists
          (transforms syntax)
          (transforms utils))
-
- (define (never? _) #f)
 
  ;; e, bound, free -> e
  ;; - symbols referring to bound variables are left unmodified; bound?

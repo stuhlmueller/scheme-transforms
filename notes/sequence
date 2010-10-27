@@ -1,0 +1,20 @@
+Sequence of transforms
+======================
+
+self-eval | primitive | lambda | if | (A B) | begin | set! | letrec
+
+-- letrec-to-set -->
+
+self-eval | primitive | lambda | if | (A B) | begin | set!
+
+-- assignment -->
+
+self-eval | primitive | lambda | if | (A B) | begin
+
+-- cps -->
+
+self-eval | primitive | lambda | if | (A B)
+
+-- cc -->
+
+self-eval | primitive | lambda | if | (A B)
