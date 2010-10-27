@@ -13,8 +13,8 @@ self-eval | primitive | lambda | if | (A B) | begin
 
 -- cps -->
 
-self-eval | primitive | lambda | if | (A B)
+self-eval | primitive | lambda | if | (A B) | apply
 
 -- cc -->
 
-self-eval | primitive | lambda | if | (A B)
+self-eval | primitive | lambda | if | (A B) | apply

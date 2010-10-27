@@ -36,12 +36,17 @@
          lambda-body
          quoted?
          definition?
-         free-variables)
+         free-variables
+         mapsub
+         subexps
+         apply?
+         apply->proc
+         apply->args)
 
  (import (rnrs)
          (_srfi :1) ; lists
          (transforms utils))
-
+ 
  (define (mem? sexpr) (tagged-list? sexpr 'mem))
  (define (lambda-parameters exp) (cadr exp))
  (define (lambda-body exp) (caddr exp))
@@ -61,6 +66,9 @@
  (define if->pred second)
  (define if->cons third)
  (define if->alt fourth)
+ (define (apply? e) (tagged-list? e 'apply))
+ (define apply->proc second)
+ (define apply->args cddr)
 
  (define (begin? e) (tagged-list? e 'begin))
  (define (if? e) (tagged-list? e 'if))
@@ -88,6 +96,17 @@
        (number? e)
        (boolean? e)
        (string? e)))
+
+ (define (mapsub f e)
+   (cond [(or (if? e) (begin? e) (set? e)) `(,(first e) ,@(map f (rest e)))]
+         [(application? e) (map f e)]
+         [else (error e "mapsub: unknown expression type")]))
+
+ (define (subexps e)
+   (cond [(or (if? e) (begin? e) (set? e)) (rest e)]
+         [(application? e) e]
+         [else (error e "subexps: unknown expression type")]))
+   
 
  ;;this is used to find the free variables in a program, which need to be provided by the header. (will also be used by caching...)
  (define (free-variables sexpr bound-vars)

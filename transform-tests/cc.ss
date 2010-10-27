@@ -25,4 +25,5 @@
 (run-tests cc-transform
            cc-check
            (append common-tests
+                   apply-tests
                    derived-tests))

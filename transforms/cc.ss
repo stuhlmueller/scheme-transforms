@@ -40,11 +40,12 @@
    (cond
     ((begin? e) (error e "begins should have been turned into lambdas!"))
     ((set? e) (error e "set! should have been turned into set-cell!"))
-    ((letrec? e) (error e "letrecs should have been desugared into set+lambda!"))    
+    ((letrec? e) (error e "letrecs should have been desugared into set+lambda!"))
     ((primitive? e) close-primitive)
     ((self-evaluating? e) close-self-evaluating)
     ((lambda? e) close-lambda)    
     ((if? e) close-if)
+    ((apply? e) close-apply)
     ((application? e)
      (let ((op (app->opt e)))
        (cond
@@ -53,13 +54,8 @@
         (else close-application))))
     (else (error e "unknown e type"))))
 
- (define (make-proper-list s)
-   (cond [(null? s) '()]
-         [(symbol? s) (list s)]
-         [(pair? s) (pair (first s) (make-proper-list (rest s)))]))
-
  (define (bound-predicate names)
-   (let ([list-of-names (make-proper-list names)])
+   (let ([list-of-names (listify names)])
      (lambda (name)
        (memq name list-of-names))))
 
@@ -107,6 +103,15 @@
            (bound-predicate formals)
            '()))
        ,@(close-sequence args bound? free))))
+
+ (define (close-apply e bound? free)
+   (let ((op (cc (apply->proc e) bound? free))
+         (opname (ngensym 'op)))
+     `((lambda (,opname)
+         (apply
+          (vector-ref ,opname 0)
+          ,opname
+          ,@(close-sequence (apply->args e) bound? free))) ,op)))
 
  ;; A normal application is converted by looking up the procedure body
  ;; in the operator's closure and applying it to the operator along

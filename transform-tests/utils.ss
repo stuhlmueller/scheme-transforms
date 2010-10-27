@@ -31,8 +31,9 @@
 
  (define (run-test transformer checker expr)
    (display "Running Test:\n")
-   (pretty-print expr)   
+   (pretty-print expr)
    (let* ([test-e (transformer expr)]
+          ;; [_ (pretty-print test-e)]
           [test-res (eval (transformer expr)
                           (environment '(rnrs) '(rnrs mutable-pairs)))]
           [res (eval expr (environment '(rnrs) '(rnrs mutable-pairs)))]

@@ -33,8 +33,7 @@
              ,@(map (lambda (n v) `(set! ,n ,v)) names vals)
              ,(letrec->body e)))
          ,@(make-list (length names) '#f)))]
-    [(or (if? e) (begin? e) (set? e)) `(,(first e)
-                                        ,@(map lrs (rest e)))]
+    [(or (if? e) (begin? e) (set? e)) (mapsub lrs e)]
     [(application? e) (map lrs e)]))
 
  (define (letrec-to-set e)

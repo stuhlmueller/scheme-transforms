@@ -29,10 +29,8 @@
                          (mutated-free-vars (set->val e)))]
          [(lambda? e) (except (mutated-free-vars (lambda->body e))
                          (listify (lambda->args e)))]
-         [(or (begin? e) (if? e))
-          (set-join (map mutated-free-vars (rest e)))]
-         [(application? e)
-          (set-join (map mutated-free-vars e))]
+         [(or (begin? e) (if? e) (application? e))
+          (set-join (map mutated-free-vars (subexps e)))]
          [else (error e "mutated-free-vars: can't handle expr type")]))
 
  (define (mutated-free-vars* es)
@@ -93,9 +91,8 @@
                    ,(amt vars (set->val e)))))
 
  (define (amt-subexprs vars e)
-   `(,(first e)
-     ,@(map (curry amt vars) (rest e))))
-
+   (mapsub (curry amt vars) e))
+ 
  (define (amt-application vars e)
    (map (curry amt vars) e))
 

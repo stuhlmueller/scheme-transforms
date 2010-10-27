@@ -7,7 +7,8 @@
  (export common-tests
          begin-tests
          set-tests
-         letrec-tests)
+         letrec-tests
+         apply-tests)
 
  (import (rnrs))
 
@@ -24,8 +25,20 @@
      (if (> 1 0) #t #f)
      (lambda (f) (f 1 2))
      ((lambda (f) (f 1 2)) cons)
-     ((lambda (f) (f 1 2 3)) (lambda (x y z) (list z y x)))))
+     ((lambda (f) (f 1 2 3)) (lambda (x y z) (list z y x)))
+     ((lambda (g) (g ((lambda (f) (f 'ok 2)) g) 2)) cons)
+     ))
 
+ ;; language: common + apply
+ (define apply-tests
+   '(
+     (apply (lambda (x) x) (list 1))
+     (apply cons (list 1 2))
+     (apply cons 1 (list 2))
+     ((lambda (f) ((lambda (g) (apply g (list f #t))) (lambda (x y) (x y y)))) cons)
+     ((lambda (f) ((lambda (g) (apply g f (list #t))) (lambda (x y) (x y y)))) cons)
+     ))
+ 
  ;; language: common + begin
  (define begin-tests
    '(
