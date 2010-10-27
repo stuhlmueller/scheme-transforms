@@ -9,8 +9,7 @@
  (import (rnrs)
          (_srfi :1) ; lists
          (transforms syntax)
-         (transforms utils)
-         (only (ikarus) pretty-print assert))
+         (transforms utils))
 
  ;; not recursive!
  (define (desugar-letrec e)

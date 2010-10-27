@@ -8,7 +8,6 @@
 
  (import (rnrs)
          (transforms utils)
-         (only (ikarus) eval environment pretty-print format)
          (_srfi :1))
 
  (define tests-failed '())

@@ -8,7 +8,6 @@
 
 (import (rnrs)
         (_srfi :1)
-        (only (ikarus) pretty-print eval environment)
         (transforms desugar-letrec)
         (transform-tests utils)
         (transform-tests tests))

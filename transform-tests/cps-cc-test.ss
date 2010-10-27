@@ -3,8 +3,7 @@
 (import (rnrs)
         (_srfi :1)
         (transforms cc)
-        (transforms cps)
-        (only (ikarus) eval environment pretty-print))
+        (transforms cps))
 
 ;; (define e '(((lambda (x) (lambda (y) x)) 2) 1))
 

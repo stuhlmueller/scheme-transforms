@@ -13,15 +13,52 @@
          false?
          tagged-list?
          gensym
-         curry)
+         curry
+         compose
+         except
+         both
+         union
+         contains
+         set-join
+         listify
+         eval
+         environment
+         parameterize
+         make-parameter
+         pretty-print
+         assert
+         format
+         primitives
+         primitive?
+         pe)
  
  (import (_srfi :1)
          (rnrs)
-         (only (ikarus) gensym))
+         (only (ikarus)
+               assert
+               gensym
+               eval
+               environment
+               parameterize
+               make-parameter
+               pretty-print
+               format))
+
+ (define (pe . args)
+   (for-each display args))
+
+ (define primitives (make-parameter '()))
+
+ (define (primitive? var)
+   (memq var (primitives))) 
 
  (define (curry fun . const-args)
    (lambda args
      (apply fun (append const-args args))))
+
+ (define (compose f g)
+   (lambda args
+     (f (apply g args))))
 
  (define rest cdr)
  
@@ -46,5 +83,26 @@
    (if (pair? exp)
        (eq? (car exp) tag)
        false))
- 
+
+ (define (listify p)
+   (cond [(null? p) '()]
+         [(symbol? p) (pair p '())]
+         [(pair? p) (pair (first p) (listify (rest p)))]
+         [else (error p "pairs->list: can't handle expr type")]))
+
+ (define (except vals not-vals)
+   (lset-difference eq? vals not-vals))
+
+ (define (both vals-a vals-b)
+   (lset-intersection eq? vals-a vals-b))
+
+ (define (contains vars var)
+   (not (null? (both vars (list var)))))
+
+ (define (union vals-a vals-b)
+   (lset-union eq? vals-a vals-b))
+
+ (define (set-join lsts)
+   (delete-duplicates (apply append lsts)))
+
  )

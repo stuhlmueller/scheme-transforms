@@ -114,3 +114,19 @@
           ((vector-ref ,body-vector-name 0) ,body-vector-name)))
       ,body-vector
       ,@initial-vectors)))
+
+ (define (closure-env-set name val-expr bound? free)
+   (cond ((primitive? name) (error name "cannot overwrite primitive name!"))
+         ((bound? name) `(set! ,name ,val-expr)) ;; this should only match on originally bound vars
+         ((assq name free) => (lambda (b) `(vector-set! ,@(cddr b) ,val-expr))) ;; FIXME
+         (else (error name "set: unbound identifier"))))
+
+ ;; FIXME: what to do about this? need to set correct element in self vector
+ ;; cc makes all arguments explicit
+ ;; set! wants to modify arguments in original scope
+ ;; setting explicit arguments will only set them in current scope
+ (define (close-set expr bound? free)
+   (closure-env-set (set->var expr)
+                    (convert-closure (set->val expr) bound? free)
+                    bound?
+                    free))

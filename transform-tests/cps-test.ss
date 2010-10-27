@@ -31,6 +31,10 @@
                                          (cps-check (cdr a) (cdr b)))]
          [else (equal? a b)]))
 
+(define (cps-eval sexpr)
+   (eval (cps-transform sexpr)
+         (environment '(rnrs))))
+
 (run-tests cps-transform
            cps-eval
            cps-check

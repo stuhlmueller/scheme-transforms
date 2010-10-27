@@ -1,39 +1,30 @@
 #!r6rs
 
-;; based on
-;; http://github.com/darius/selfcentered
+;; Continuation-Passing Style
 
-;; all lambdas take additional argument, continuation;
-;; instead of returning, call continuation on result
-;; every argument is either variable or lambda expression
+;; based on http://github.com/darius/selfcentered
 
-;; application evaluates arguments one-by-one, constructing
-;; continuation procedure that takes argument, either evaluates next
-;; one or applies function 
+;; input language:
+;; self-eval | primitive | lambda | letrec | begin | if | make-cell | set-cell! | (A B)
+
+;; output language:
+;; self-eval | primitive | lambda | make-cell | set-cell! | if | (A B)
 
 (library
 
  (transforms cps)
 
- (export cps-transform
-         cps-eval)
+ (export cps-transform)
 
  (import (rnrs)
          (_srfi :1) ; lists
          (transforms syntax)
          (transforms utils)
-         (transforms desugar-letrec)
-         (only (ikarus) eval environment parameterize make-parameter pretty-print))
-
- (define primitives (make-parameter '()))
-
- (define (primitive? var)
-   (memq var (primitives)))
+         (transforms desugar-letrec))
 
  (define (cps-rename s)
    (string->symbol (string-append "cps-" (symbol->string s))))
 
- ;; this is for compilation to scheme with letrec
  (define (with-cps-primitives e ps)
    (desugar-letrec
     `(letrec ([cps-prim (lambda (f)
@@ -43,9 +34,11 @@
                      ps))
        ,e)))
 
+ ;; e, k -> e
  (define (cps e k)
    ((cps-converter e) e k))
 
+ ;; [e], k -> e
  (define (cps* es k)
    (if (null? es)
        (k '())
@@ -54,6 +47,7 @@
              `(lambda (,k1) ,(cps* (rest es)
                               (lambda (xs) (k (cons k1 xs)))))))))
 
+ ;; e -> (e, k -> e)
  (define (cps-converter e)
    (cond [(primitive? e) cps-primitive]
          [(self-evaluating? e) cps-self-eval]
@@ -117,20 +111,13 @@
         [cont-primitives (if (or (null? args) (null? (rest args)))
                              '()
                              (second args))])
-    ;; (pretty-print sexpr)
-    (parameterize ([primitives (lset-difference equal?
-                                                (get-primitives sexpr)
-                                                (append cont-primitives
-                                                        bound-vars))])
-                  (begin
-                    ;; (for-each display (list "primitives: " (primitives) "\n"))
-                    (with-cps-primitives
-                     (cps sexpr (let ([v (ngensym 'v)])
-                                  `(lambda (,v) ,v)))
-                     (primitives))))))
- 
- (define (cps-eval sexpr)
-   (eval (cps-transform sexpr)
-         (environment '(rnrs))))
+    (parameterize
+     ([primitives (except (get-primitives sexpr)
+                          (append cont-primitives
+                                  bound-vars))])
+     (with-cps-primitives
+      (cps sexpr (let ([v (ngensym 'v)])
+                   `(lambda (,v) ,v)))
+      (primitives)))))
 
  )
