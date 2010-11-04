@@ -91,7 +91,11 @@
        (plus2 (plus2 3)))
      (letrec ([a (list (lambda () b))]
               [b (list (lambda () a))])
-       (list a ((car b)) b ((car a))))))
+       (list a ((car b)) b ((car a))))
+     (letrec ([a 1])
+       (letrec ([b a])
+         (list a b)))
+     ))
 
  )
 

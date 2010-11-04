@@ -108,14 +108,14 @@
          [else (error e "subexps: unknown expression type")]))
    
 
- ;;this is used to find the free variables in a program, which need to be provided by the header. (will also be used by caching...)
+ ;;this is used to find the free variables in a program, which need to
+ ;;be provided by the header.
  (define (free-variables sexpr bound-vars)
    (cond
     ((begin? sexpr) (apply append (map (lambda (e) (free-variables e bound-vars)) (rest sexpr))))
     ((letrec? sexpr)
      (let ((new-bound (append (map first (second sexpr)) bound-vars)))
        (apply append (map (lambda (e) (free-variables e new-bound)) (pair (third sexpr) (map second (second sexpr)))))))
-    ;;((self-evaluating? sexpr) (make-syntax 'self-evaluating sugared-sexpr sexpr) )
     ((quoted? sexpr) '())
     ((lambda? sexpr) (free-variables (lambda-body sexpr) (let loop ((params (lambda-parameters sexpr)))
                                                            (if (null? params)

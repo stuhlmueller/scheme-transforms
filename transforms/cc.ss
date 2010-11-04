@@ -176,8 +176,9 @@
                 `(vector-ref ,self ,ii)
                 env)))))
  
- (define (cc-transform e)
-   (parameterize ([primitives (get-primitives e)])
-                 (cc e never? '())))
+ (define (cc-transform e . args)
+  (let ([bound-vars (if (null? args) '() (first args))])
+    (parameterize ([primitives (get-primitives e)])
+                  (cc e (bound-predicate bound-vars) '()))))
 
  )

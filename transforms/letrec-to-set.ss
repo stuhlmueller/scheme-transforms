@@ -30,11 +30,12 @@
             [vals (map def->val defns)])
        `((lambda ,names
            (begin
-             ,@(map (lambda (n v) `(set! ,n ,v)) names vals)
-             ,(letrec->body e)))
+             ,@(map (lambda (n v) `(set! ,n ,(lrs v))) names vals)
+             ,(lrs (letrec->body e))))
          ,@(make-list (length names) '#f)))]
     [(or (if? e) (begin? e) (set? e)) (mapsub lrs e)]
-    [(application? e) (map lrs e)]))
+    [(application? e) (map lrs e)]
+    [else (error e "letrec-to-set: cannot handle expr type")]))
 
  (define (letrec-to-set e)
    (parameterize ([primitives (get-primitives e)])
