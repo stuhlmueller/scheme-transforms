@@ -65,3 +65,24 @@
            ,@(map (lambda (p) `(,(cps-rename p) (cps-prim ,p)))
                   ps))
     ,e)))
+
+;; cps-transform
+;; 
+;; input: expr like
+;; (begin
+;;   (define a (lambda args body))
+;;   (define b (lambda args body))
+;;   expr)
+;; output:
+;; (begin
+;;   (define cps-prim-1 (lambda (k . args (k (apply prim-1 args)))))
+;;   (define cps-prim-2 (lambda (k . args (k (apply prim-2 args)))))
+;;   ...
+;;   (define a (lambda (k . args) cps-body))
+;;   (define b (lambda (k . args) cps-body))
+;;   cps-expr)
+
+;; (1) get true primitives of input expr with defines (get-free-vars
+;;     must handle defines correctly)
+;; (2) transform old top-level defines into cps style
+;; (3) transform expr into cps style                                                                                         

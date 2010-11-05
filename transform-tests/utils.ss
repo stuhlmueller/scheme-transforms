@@ -9,6 +9,7 @@
 
  (import (rnrs)
          (transforms utils)
+         (transforms syntax)
          (_srfi :1))
 
  (define (base-check a b)
@@ -29,14 +30,23 @@
          (display (format "\n~s FAILED tests:\n" (length tests-failed)))
          (map pretty-print tests-failed))))
 
+ (define (top-level-defines->letrec e)
+   (if (begin? e)
+       `(letrec ,(map rest (begin->defs e))
+          ,(begin-wrap (begin->nondefs e)))
+       e))
+
+ (define (evaluate expr)
+   (let ([e (top-level-defines->letrec expr)])
+     (eval e (environment '(rnrs) '(rnrs mutable-pairs)))))
+ 
  (define (run-test transformer checker expr)
    (display "Running Test:\n")
-   (pretty-print expr)
-   (let* ([test-e (transformer expr)]
-          ;; [_ (pretty-print test-e)]
-          [test-res (eval (transformer expr)
-                          (environment '(rnrs) '(rnrs mutable-pairs)))]
-          [res (eval expr (environment '(rnrs) '(rnrs mutable-pairs)))]
+   ;; (pretty-print expr)
+   (let* ([test-expr (transformer expr)]
+          ;; [_ (pretty-print test-expr)]
+          [test-res (evaluate test-expr)]
+          [res (evaluate expr)]
           [test-passed (checker test-res res)])
      (for-each display (list "test result:  " test-res "\n"
                              "base result: " res "\n"
@@ -44,7 +54,7 @@
                              "\n"))
      (when (not test-passed)
            (display "converted expr:\n")
-           (pretty-print test-e)
+           (pretty-print test-expr)
            (set! tests-failed (pair expr tests-failed)))
      (display "\n")))
 

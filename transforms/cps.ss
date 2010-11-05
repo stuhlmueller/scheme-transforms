@@ -5,10 +5,10 @@
 ;; based on http://github.com/darius/selfcentered
 
 ;; input language:
-;; self-eval | primitive | lambda | begin | if | (A B)
+;; self-eval | primitive | lambda | begin | if | (A B) | top-level-begin-define
 
 ;; output language:
-;; self-eval | primitive | lambda | if | (A B)
+;; self-eval | primitive | lambda | if | (A B) | apply | top-level-begin-define
 
 (library
 
@@ -20,18 +20,6 @@
          (_srfi :1) ; lists
          (transforms syntax)
          (transforms utils))
-
- (define (cps-rename s)
-   (string->symbol (string-append "cps-" (symbol->string s))))
-
- (define (with-cps-primitives e ps)
-   `((lambda (cps-prim)
-       ((lambda ,(map cps-rename ps)
-          ,e)
-        ,@(map (lambda (p) `(cps-prim ,p)) ps)))
-     (lambda (f)
-       (lambda (k . args)
-         (k (apply f args))))))
 
  ;; e, k -> e
  (define (cps e k)
@@ -68,9 +56,12 @@
    `(,k ,e))
 
 (define (cps-lambda e k)
-  (let ([k1 (ngensym 'kl)])
-    `(,k (lambda (,k1 . ,(lambda->args e))
-           ,(cps (lambda->body e) k1)))))
+  `(,k ,(cps-defined-lambda e)))
+
+(define (cps-defined-lambda e)
+  (let ([k1 (ngensym 'kl)])  
+    `(lambda (,k1 . ,(lambda->args e))
+       ,(cps (lambda->body e) k1))))
 
 (define (cps-set e k)
   (let ([r (ngensym 'r)])
@@ -102,18 +93,41 @@
                        [xs (rest x)])
                    `(,f ,k . ,xs)))))
 
-(define (cps-transform sexpr . args)
-  (let ([bound-vars (if (null? args) '() (first args))]
-        [cont-primitives (if (or (null? args) (null? (rest args)))
-                             '()
-                             (second args))])
+(define (cps-rename s)
+   (string->symbol (string-append "cps-" (symbol->string s))))
+
+(define (cps-primitives ps)
+  `(,@(map (lambda (p) `(define ,(cps-rename p)
+                     (lambda (k . args) (k (apply ,p args)))))
+           ps)))
+
+(define (top-cps e)
+  (let ([k (let ([v (ngensym 'v)])
+             `(lambda (,v) ,v))])    
+    (if (begin? e)
+        (let* ([defs (begin->defs e)]
+               [nondefs (begin->nondefs e)]
+               [cps-e (cps (begin-wrap nondefs) k)])
+          `(begin
+             ,@(map (lambda (def)
+                      (begin (assert (lambda? (definition->value def)))
+                             `(define
+                                ,(definition->name def)
+                                ,(cps-defined-lambda (definition->value def)))))
+                    defs)
+             ,cps-e))
+        (cps e k))))
+
+;; meaning of primitives: globally free variables that are assumed to
+;; be Scheme functions
+;; - for primitives, cps-ified version is added (apply)
+;; - for old defined lambdas, args are extended and body is cps-ified
+(define (cps-transform e . args)
+  (let ([bound-vars (if (null? args) '() (first args))])
     (parameterize
-     ([primitives (except (get-primitives sexpr)
-                          (append cont-primitives
-                                  bound-vars))])
-     (with-cps-primitives
-      (cps sexpr (let ([v (ngensym 'v)])
-                   `(lambda (,v) ,v)))
-      (primitives)))))
+     ([primitives (get-primitives e bound-vars)])
+     (add-defines
+      (top-cps e)
+      (cps-primitives (primitives))))))
 
  )

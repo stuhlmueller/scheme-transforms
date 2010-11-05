@@ -36,12 +36,18 @@
          lambda-body
          quoted?
          definition?
+         definition->name
+         definition->value
          free-variables
          mapsub
          subexps
          apply?
          apply->proc
-         apply->args)
+         apply->args
+         add-defines
+         begin->nondefs
+         begin->defs
+         begin-wrap)
 
  (import (rnrs)
          (_srfi :1) ; lists
@@ -52,6 +58,8 @@
  (define (lambda-body exp) (caddr exp))
  (define (quoted? exp) (tagged-list? exp 'quote))
  (define (definition? exp) (tagged-list? exp 'define))
+ (define definition->name second)
+ (define definition->value third)
  (define (lambda? e) (tagged-list? e 'lambda))
  (define lambda->args second)
  (define lambda->body third)
@@ -98,7 +106,8 @@
        (string? e)))
 
  (define (mapsub f e)
-   (cond [(or (if? e) (begin? e) (set? e)) `(,(first e) ,@(map f (rest e)))]
+   (cond [(definition? e) `(define ,(definition->name e) ,(f (definition->value e)))]
+         [(or (if? e) (begin? e) (set? e)) `(,(first e) ,@(map f (rest e)))]
          [(application? e) (map f e)]
          [else (error e "mapsub: unknown expression type")]))
 
@@ -112,7 +121,12 @@
  ;;be provided by the header.
  (define (free-variables sexpr bound-vars)
    (cond
-    ((begin? sexpr) (apply append (map (lambda (e) (free-variables e bound-vars)) (rest sexpr))))
+    ((begin? sexpr)
+     (let ([new-bound (append (map definition->name (begin->defs sexpr))
+                              bound-vars)])
+       (apply append (map (lambda (e) (free-variables e new-bound)) (rest sexpr)))))
+    ((definition? sexpr)
+     (free-variables (definition->value sexpr) bound-vars))
     ((letrec? sexpr)
      (let ((new-bound (append (map first (second sexpr)) bound-vars)))
        (apply append (map (lambda (e) (free-variables e new-bound)) (pair (third sexpr) (map second (second sexpr)))))))
@@ -133,5 +147,26 @@
 
  ;; FIXME
  (define get-primitives get-free-vars)
+
+ (define (begin->defs e)
+   (filter definition? (cdr e)))
+
+ (define (begin->nondefs e)
+   (filter (lambda (ei) (not (definition? ei))) (cdr e)))
+
+ (define (add-defines e defs)
+   (if (begin? e)
+       `(begin
+          ,@(begin->defs e)
+          ,@defs
+          ,@(begin->nondefs e))
+       `(begin
+          ,@defs
+          ,e)))
+
+ (define (begin-wrap exprs)
+   (if (null? (rest exprs))
+       (first exprs)
+       `(begin ,@exprs)))
  
  )

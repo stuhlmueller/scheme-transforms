@@ -9,7 +9,7 @@
 ;; self-eval | primitive | lambda | begin | if | set! | (A B)
 
 ;; output language:
-;; self-eval | primitive | lambda | begin | if | (A B)
+;; self-eval | primitive | lambda | begin | if | (A B) | top-level-begin-define
 
 (library
 
@@ -96,15 +96,14 @@
  (define (amt-application vars e)
    (map (curry amt vars) e))
 
- (define (with-amt-primitives e)
-   `((lambda (make-cell set-cell! cell-ref)
-       ,e)
-     (lambda (v) (cons 'cell v))
-     (lambda (c v) (set-cdr! c v))
-     (lambda (c) (cdr c))))
+ (define amt-primitives
+   `((define make-cell (lambda (v) (cons 'cell v)))
+     (define set-cell! (lambda (c v) (set-cdr! c v)))
+     (define cell-ref (lambda (c) (cdr c)))))
 
  (define (assignment-transform e)
-   (parameterize ([primitives (get-primitives e)])   
-                 (with-amt-primitives (amt '() e))))
+   (parameterize ([primitives (get-primitives e)])
+                 (add-defines (amt '() e)
+                              amt-primitives)))
 
  )

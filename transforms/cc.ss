@@ -5,10 +5,10 @@
 ;; based on goo.gl/HdsQ
 
 ;; input language:
-;; self-eval | primitive | lambda | if | (A B)
+;; self-eval | primitive | lambda | if | (A B) | apply | top-level-begin-define
 
 ;; output language:
-;; self-eval | primitive | lambda | if | (A B)
+;; self-eval | primitive | lambda | if | (A B) | apply | top-level-begin-define
 
 (library
 
@@ -41,11 +41,12 @@
     ((begin? e) (error e "begins should have been turned into lambdas!"))
     ((set? e) (error e "set! should have been turned into set-cell!"))
     ((letrec? e) (error e "letrecs should have been desugared into set+lambda!"))
+    ((eq? e 'apply) 'apply)
+    ((apply? e) close-apply)    
     ((primitive? e) close-primitive)
     ((self-evaluating? e) close-self-evaluating)
     ((lambda? e) close-lambda)    
     ((if? e) close-if)
-    ((apply? e) close-apply)
     ((application? e)
      (let ((op (app->opt e)))
        (cond
@@ -175,10 +176,31 @@
                 (car names)
                 `(vector-ref ,self ,ii)
                 env)))))
- 
+
+ (define (top-cc e bound-vars)
+   (display "primitives : ")
+   (display (primitives))
+   (display "\n")
+   (if (begin? e)
+        (let* ([defs (begin->defs e)]
+               [nondefs (begin->nondefs e)]
+               [bound? (bound-predicate (append bound-vars
+                                                (map definition->name defs)))]
+               [cc-e (cc (begin-wrap nondefs) bound? '())])
+          `(begin
+             ,@(map (lambda (def)
+                      (begin (assert (lambda? (definition->value def)))
+                             `(define
+                                ,(definition->name def)
+                                ,(close-lambda (definition->value def) bound? '()))))
+                    defs)
+             ,cc-e))
+        (cc e (bound-predicate bound-vars) '())))
+
+ ;; (1) get free variables of overall expression
  (define (cc-transform e . args)
-  (let ([bound-vars (if (null? args) '() (first args))])
-    (parameterize ([primitives (get-primitives e)])
-                  (cc e (bound-predicate bound-vars) '()))))
+   (let ([bound-vars (if (null? args) '() (first args))])
+     (parameterize ([primitives (get-primitives e)])
+                   (top-cc e bound-vars))))
 
  )
