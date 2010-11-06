@@ -200,7 +200,7 @@
  ;; (1) get free variables of overall expression
  (define (cc-transform e . args)
    (let ([bound-vars (if (null? args) '() (first args))])
-     (parameterize ([primitives (get-primitives e)])
+     (parameterize ([primitives (get-primitives e '(set!))])
                    (top-cc e bound-vars))))
 
  )

@@ -125,7 +125,7 @@
 (define (cps-transform e . args)
   (let ([bound-vars (if (null? args) '() (first args))])
     (parameterize
-     ([primitives (get-primitives e bound-vars)])
+     ([primitives (get-primitives e (cons 'set! bound-vars))])
      (add-defines
       (top-cps e)
       (cps-primitives (primitives))))))
