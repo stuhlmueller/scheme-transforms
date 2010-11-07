@@ -19,8 +19,8 @@
           (pretty-print (assignment-transform (letrec-to-set e)))
           (display "cps:\n")
           (pretty-print (cps-transform (assignment-transform (letrec-to-set e))))
-          ;; (display "cc:\n")
-          ;; (pretty-print (cc-transform (cps-transform (assignment-transform (letrec-to-set e)))))
+          (display "cc:\n")
+          (pretty-print (cc-transform (cps-transform (assignment-transform (letrec-to-set e)))))
           (loop)))))
 
 (loop)

@@ -2,13 +2,15 @@
 
 ;; Closure Conversion
 
-;; based on goo.gl/HdsQ
+;; based on goo.gl/HdsQ and
+;; "Design concepts in programming languages"
+;; by FA Turbak, DK Gifford, MA Sheldon
 
 ;; input language:
-;; top-level-begin-define | self-eval | primitive | lambda | if | (A B) | apply
+;; top-level-begin-define | self-eval | primitive | lambda | if | (A B) | (apply) | let
 
 ;; output language:
-;; top-level-begin-define | self-eval | primitive | lambda | if | (A B) | apply
+;; top-level-begin-define | self-eval | primitive | lambda | if | (A B) | (apply) | let
 
 (library
 
@@ -21,6 +23,11 @@
          (transforms common)
          (transforms syntax)
          (transforms utils))
+
+ (define primitives (make-parameter '()))
+
+ (define (primitive? var)
+   (memq var (primitives)))  
 
  ;; e, bound, free -> e
  ;; - symbols referring to bound variables are left unmodified; bound?
@@ -39,22 +46,28 @@
  ;; e -> (e, bound, free -> e)
  (define (closure-converter e)
    (cond
-    ((begin? e) (error e "begins should have been turned into lambdas!"))
-    ((set? e) (error e "set! should have been turned into set-cell!"))
-    ((letrec? e) (error e "letrecs should have been desugared into set+lambda!"))
-    ((eq? e 'apply) 'apply)
-    ((apply? e) close-apply)    
-    ((primitive? e) close-primitive)
-    ((self-evaluating? e) close-self-evaluating)
-    ((lambda? e) close-lambda)    
-    ((if? e) close-if)
-    ((application? e)
-     (let ((op (app->opt e)))
-       (cond
-        ((primitive? op) close-primitive-application) ;; don't need to convert primitive that is immediately applied
-        ((lambda? op) close-lambda-application)
-        (else close-application))))
-    (else (error e "unknown e type"))))
+    [(begin? e) (error e "closure-converter: begins should have been turned into lambdas!")]
+    [(set? e) (error e "closure-converter: set! should have been turned into set-cell!")]
+    [(letrec? e) (error e "closure-converter: letrecs should have been desugared into set+lambda!")]
+    [(eq? e 'apply) (lambda (e bound? free) 'apply)]
+    [(primitive-apply? e) close-primitive-apply]
+    [(apply? e) close-apply] ;; partial support
+    [(lambda? e) close-lambda]
+    [(if? e) close-if]
+    [(lambda-let? e) close-lambda-let]
+    [(let? e) close-let]
+    [(primitive? e) close-primitive]
+    [(self-evaluating? e) close-self-evaluating]    
+    [(application? e)
+     (let ([op (app->opt e)])
+       (if (primitive? op)
+           close-primitive-application
+           close-application))]
+    [else (error e "closure-converter: unknown expression type")]))
+
+ (define (primitive-apply? e)
+   (and (apply? e)
+        (primitive? (apply->proc e))))
 
  (define (bound-predicate names)
    (let ([list-of-names (listify names)])
@@ -65,13 +78,11 @@
    (cons (cons name value) env))
  
  (define (closure-env-ref name bound? free)
-   (cond ((primitive? name) name)
-         ((bound? name) name)
-         ((assq name free) => cdr)
-         (else (error name "unbound identifier"))))
+   (cond [(primitive? name) name]
+         [(bound? name) name]
+         [(assq name free) => cdr]
+         [else (error name "unbound identifier")]))
 
- ;; An unbound identifier is converted to a %CLOSURE-REF.  Other atoms
- ;; are converted to themselves.
  (define (close-self-evaluating e bound? free)
    (if (symbol? e)
        (closure-env-ref e bound? free)
@@ -85,54 +96,30 @@
    `(,(app->opt e)
      ,@(close-sequence (app->ops e) bound? free)))
 
- ;; LAMBDA applications are treated as binding forms (there's no
- ;; primitive LET).  Don't convert the LAMBDA to a closure.  Lift free
- ;; identifiers.  Convert the lambda body in the context of its lifted
- ;; formal parameters.  Convert the arguments in the current context.
- ;;
- ;; Note: Lifting makes the code verbose.  It might not be necessary.
- ;; Revisit this after making a code emitter.  Feeley uses a primitive
- ;; LET form.
- (define (close-lambda-application e bound? free)
-   (let* ((op (app->opt e))
-          (free-in-expr (get-free-vars op (primitives)))
-          ;; Lifting is accomplished with these appends.
-          (formals (append (lambda->args op) free-in-expr))
-          (args (append (app->ops e) free-in-expr)))
-     `((lambda ,formals
-         ,(cc
-           (lambda->body op)
-           (bound-predicate formals)
-           '()))
-       ,@(close-sequence args bound? free))))
-
  (define (close-apply e bound? free)
-   (let ((op (cc (apply->proc e) bound? free))
-         (opname (ngensym 'op)))
-     `((lambda (,opname)
-         (apply
-          (vector-ref ,opname 0)
-          ,opname
-          ,@(close-sequence (apply->args e) bound? free))) ,op)))
+   (let ([op (cc (apply->proc e) bound? free)]
+         [opname (ngensym 'op)])
+     `(let ([,opname ,op])
+        (apply
+         (vector-ref ,opname 0)
+         ,opname 
+         ,@(close-sequence (apply->args e) bound? free)))))
 
- ;; A normal application is converted by looking up the procedure body
- ;; in the operator's closure and applying it to the operator along
- ;; with the converted arguments.
- ;; FIXME: this duplicates op
- ;; (define (close-application e bound? free)
- ;;   (let ((op (cc (app->opt e) bound? free)))
- ;;     `((vector-ref ,op 0)
- ;;       ,op
- ;;       ,@(close-sequence (app->ops e) bound? free))))
- ;; can I do this?
- (define (close-application e bound? free)
-   (let ((op (cc (app->opt e) bound? free))
-         (opname (ngensym 'op)))
-     `((lambda (,opname)
-         ((vector-ref ,opname 0)
-          ,opname
-          ,@(close-sequence (app->ops e) bound? free))) ,op)))
+ ;; common after cps, since each primitive
+ ;; is rewritten to ... (apply proc args) ...
+ (define (close-primitive-apply e bound? free)
+   (let ([op (apply->proc e)])
+     (assert-with-info (symbol? op) op)
+     `(apply ,op
+             ,@(close-sequence (apply->args e) bound? free))))
  
+ (define (close-application e bound? free)
+   (let ([op (cc (app->opt e) bound? free)]
+         [opname (ngensym 'op)])
+     `(let ([,opname ,op])
+        ((vector-ref ,opname 0)
+         ,opname 
+          ,@(close-sequence (app->ops e) bound? free)))))
 
  ;; A LAMBDA is converted to a closure.  The body is scanned for free
  ;; identifiers that are bound into the closure along with the
@@ -141,9 +128,9 @@
  (define (close-lambda e bound? free)
    (let* ((self (ngensym 'self))
           (formals (lambda->args e))
-          (free-in-expr (get-free-vars e (primitives))))
+          (free-in-expr (get-free-vars e (append (primitives) reserved-words))))
      `(vector
-       (lambda (,self ,@formals)
+       (lambda (,self . ,formals)
          ,(cc
            (lambda->body e)
            (bound-predicate formals)
@@ -152,22 +139,47 @@
                 (closure-env-ref name bound? free))
               free-in-expr))))
 
+ ;; Extract code expr, bind to var, then construct vector from var
+ ;; in order to maintain cps style. 
+ ;; In BODY of (lambda (self a b c) (let ([d ...]) BODY)), we access a b c directly.
+ ;; whereas in (let ([d ...]) (lambda (self a b c) BODY)) we don't.
+ (define (close-lambda-let e bound? free)
+   (let* ([closure-expr (cc (def->val (first (let->bindings e))) bound? free)]
+          [closure-name (def->name (first (let->bindings e)))]
+          [proc-expr (list-ref closure-expr 1)]
+          [make-closure-expr (lambda (proc-expr) `(vector ,proc-expr ,@(cddr closure-expr)))]
+          [proc-name (ngensym 'p)])
+     `(let ([,proc-name ,proc-expr])
+        (let ([,closure-name ,(make-closure-expr proc-name)])
+          ,(cc (let->body e)
+               (p-or bound?
+                     (bound-predicate closure-name))
+               free)))))
+
+ ;; FIXME: verify that this is correct (maintains cps in as far as necessary)
+ (define (close-let e bound? free)
+   (let ([bindings (let->bindings e)])
+     `(let ,(map (lambda (def) `(,(def->name def) ,(cc (def->val def) bound? free)))
+                  bindings)
+        ,(cc (let->body e)
+             (p-or bound?
+                   (bound-predicate (map def->name bindings)))
+             free))))
+
  (define (close-primitive e bound? free)
    (let* ((self (ngensym 'self))
           (args (ngensym 'args)))
      `(vector
        (lambda (,self . ,args)
-         (apply ,e ,args))
-       '()
-       '())))
+         (apply ,e ,args)))))
  
- ;; self is a symbol, e.g. self12
+ ;; self-sym is a symbol, e.g. self12
  ;; free is the list of variables occuring free in an expression
  ;; this generates an association list
  ;; ((a . (vector-ref self12 1)) (b . (vector-ref self12 2)) ...)
- ;; thus, we can access variables using self variable:
+ ;; thus, we can access variables using the self variable:
  ;; (vector (lambda (self) ...) a b ...)
- (define (self-refs self free)
+ (define (self-refs self-sym free)
    (let loop ((ii 1) (names free) (env '()))
      (if (null? names)
          env
@@ -175,7 +187,7 @@
                (cdr names)
                (closure-env-bind
                 (car names)
-                `(vector-ref ,self ,ii)
+                `(vector-ref ,self-sym ,ii)
                 env)))))
 
  (define (top-cc e bound-vars)
@@ -196,9 +208,12 @@
            (lambda (e) (cc e bound? '()))) e))
        (cc e (bound-predicate bound-vars) '())))
 
+ (define reserved-words '(set! let apply))
+
  (define (cc-transform e . args)
    (let ([bound-vars (if (null? args) '() (first args))])
-     (parameterize ([primitives (get-primitives e '(set!))])
+     (parameterize ([primitives (get-primitives e reserved-words)])
+                   (pretty-print (primitives))
                    (top-cc e bound-vars))))
 
  )

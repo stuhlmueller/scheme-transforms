@@ -20,6 +20,11 @@
          (transforms utils)
          (transforms common))
 
+ (define primitives (make-parameter '()))
+
+ (define (primitive? var)
+   (memq var (primitives)))  
+
  (define (lrs e)
    (cond
     [(definition? e) (error e "letrec-to-set: cannot handle expr type")]

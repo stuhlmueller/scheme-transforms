@@ -23,6 +23,11 @@
          (transforms syntax)
          (transforms utils))
 
+ (define primitives (make-parameter '()))
+
+ (define (primitive? var)
+   (memq var (primitives)))  
+
  (define (cps-rename s)
    (string->symbol (string-append "cps-" (symbol->string s))))
 
@@ -61,18 +66,16 @@
  (define (cps-primitive e mc)
    (mc (cps-rename e)))
 
- ;; (define (cps-lambda e mc)
- ;;   (let ([id_abs (ngensym 'abs)]
- ;;         [id_k (ngensym 'k)]
- ;;         [args (lambda->args e)]
- ;;         [body (lambda->body e)])
- ;;     `(let ([,id_abs (lambda (,@args ,id_k) ,(cps body (id->mc id_k)))])
- ;;        ,(mc id_abs))))
-
- ;; let-free:
  (define (cps-lambda e mc)
    (let ([id_abs (ngensym 'abs)]
          [id_k (ngensym 'k)]
+         [args (lambda->args e)]
+         [body (lambda->body e)])
+     `(let ([,id_abs (lambda (,id_k . ,args) ,(cps body (id->mc id_k)))])
+        ,(mc id_abs))))
+
+ (define (cps-lambda/toplevel e mc)
+   (let ([id_k (ngensym 'k)]
          [args (lambda->args e)]
          [body (lambda->body e)])
      (mc `(lambda (,id_k . ,args) ,(cps body (id->mc id_k))))))
@@ -80,23 +83,14 @@
  (define (cps-application e mc)
    (cps-application* e '() mc))
  
- ;; (define (cps-application* es vals mc)
- ;;   (if (null? es)
- ;;       (let ([id_k (ngensym 'k)])
- ;;         `(let ([,id_k ,(mc->exp mc)])
- ;;            (,@(reverse vals) ,id_k)))
- ;;       (cps (first es)
- ;;            (lambda (v)
- ;;              (cps-application* (rest es) (pair v vals) mc)))))
-
- ;; let-free:
  (define (cps-application* es vals mc)
    (if (null? es)
-       (let* ([rvals (reverse vals)]
+       (let* ([id_k (ngensym 'k)]
+              [rvals (reverse vals)]
               [opt (first rvals)]
-              [ops (drop rvals 1)]
-              [k (mc->exp mc)])
-         `(,opt ,k ,@ops))
+              [ops (drop rvals 1)])
+         `(let ([,id_k ,(mc->exp mc)])
+            (,opt ,id_k ,@ops)))
        (cps (first es)
             (lambda (v)
               (cps-application* (rest es) (pair v vals) mc)))))
@@ -107,36 +101,16 @@
                                '()
                                mc))
 
- ;; (define (cps-primitive-application* opt ops vals mc)
- ;;   (if (null? ops)
- ;;       (let ([id_ans (ngensym 'ans)])
- ;;         `(let ([,id_ans (,opt ,@(reverse vals))])
- ;;            ,(mc id_ans)))
- ;;       (cps (first ops)
- ;;            (lambda (v)
- ;;              (cps-primitive-application* opt (rest ops) (pair v vals) mc)))))
-
- ;; let-free:
+ ;; produces non-lambda let
  (define (cps-primitive-application* opt ops vals mc)
    (if (null? ops)
-       (mc `(,opt ,@(reverse vals)))
+       (let ([id_ans (ngensym 'ans)])
+         `(let ([,id_ans (,opt ,@(reverse vals))])
+            ,(mc id_ans)))
        (cps (first ops)
             (lambda (v)
               (cps-primitive-application* opt (rest ops) (pair v vals) mc)))))
- 
- ;; (define (cps-if e mc)
- ;;   (let ([test (if->test e)]
- ;;         [cons (if->cons e)]
- ;;         [alt (if->alt e)]
- ;;         [id_kif (ngensym 'kif)])
- ;;     (cps test
- ;;          (lambda (v)
- ;;            `(let ([,id_kif ,(mc->exp mc)])
- ;;               (if ,v
- ;;                   ,(cps cons (id->mc id_kif))
- ;;                   ,(cps alt (id->mc id_kif))))))))
 
- ;; let-free:
  (define (cps-if e mc)
    (let ([test (if->test e)]
          [cons (if->cons e)]
@@ -164,7 +138,8 @@
        (let ([e (definition->value def)]
              [n (definition->name def)])
          `(define ,n
-            ,(cond [(or (lambda? e) (church-make-stateless-xrp? e)) (cps e (lambda (x) x))]
+            ,(cond [(church-make-stateless-xrp? e) (cps e (lambda (x) x))]
+                   [(lambda? e) (cps-lambda/toplevel e (lambda (x) x))]
                    [(symbol? e) e]
                    [else (error e "top-cps: cannot handle expr")]))))
      (lambda (e)
@@ -188,8 +163,4 @@
        (top-cps e)
        (cps-primitives (primitives))))))
 
- ;; (add-defines
- ;;  (top-cps e)
- ;;  (cps-primitives (primitives))) 
- 
  )

@@ -29,8 +29,6 @@
          assert
          assert-with-info
          format
-         primitives
-         primitive?
          pe
          never?
          p-or)
@@ -53,12 +51,7 @@
                         (assert v)))))
 
  (define (pe . args)
-   (for-each display args))
-
- (define primitives (make-parameter '()))
-
- (define (primitive? var)
-   (memq var (primitives))) 
+   (for-each display args)) 
 
  (define (curry fun . const-args)
    (lambda args

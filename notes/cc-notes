@@ -130,3 +130,24 @@
                     (convert-closure (set->val expr) bound? free)
                     bound?
                     free))
+
+
+ ;; LAMBDA applications are treated as binding forms (there's no
+ ;; primitive LET).  Don't convert the LAMBDA to a closure.  Lift free
+ ;; identifiers.  Convert the lambda body in the context of its lifted
+ ;; formal parameters.  Convert the arguments in the current context.
+ ;;
+ ;; Note: Lifting makes the code verbose.
+ ;; 
+ (define (close-lambda-application e bound? free)
+   (let* ((op (app->opt e))
+          (free-in-expr (get-free-vars op (primitives)))
+          ;; Lifting is accomplished with these appends.
+          (formals (append (lambda->args op) free-in-expr))
+          (args (append (app->ops e) free-in-expr)))
+     `((lambda ,formals
+         ,(cc
+           (lambda->body op)
+           (bound-predicate formals)
+           '()))
+       ,@(close-sequence args bound? free))))

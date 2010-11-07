@@ -23,6 +23,11 @@
          (transforms syntax)
          (transforms utils))
 
+ (define primitives (make-parameter '()))
+
+ (define (primitive? var)
+   (memq var (primitives))) 
+ 
  (define (mutated-free-vars e)
    (cond [(primitive? e) '()]
          [(self-evaluating? e) '()]

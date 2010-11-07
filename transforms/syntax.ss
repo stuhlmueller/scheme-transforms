@@ -48,7 +48,11 @@
          begin->nondefs
          begin->defs
          begin-wrap
-         church-make-stateless-xrp?)
+         church-make-stateless-xrp?
+         lambda-let?
+         let?
+         let->bindings
+         let->body)
 
  (import (rnrs)
          (_srfi :1) ; lists
@@ -78,6 +82,12 @@
  (define (apply? e) (tagged-list? e 'apply))
  (define apply->proc second)
  (define apply->args cddr)
+ (define (let? e) (tagged-list? e 'let))
+ (define let->bindings second)
+ (define let->body third)
+ (define (lambda-let? e) (and (tagged-list? e 'let)
+                         (= (length (let->bindings e)) 1)
+                         (lambda? (def->val (first (let->bindings e))))))
 
  (define (begin? e) (tagged-list? e 'begin))
  (define (if? e) (tagged-list? e 'if))
@@ -132,8 +142,12 @@
     ((definition? sexpr)
      (free-variables (definition->value sexpr) bound-vars))
     ((letrec? sexpr)
-     (let ((new-bound (append (map first (second sexpr)) bound-vars)))
+     (let ((new-bound (append (map def->name (let->bindings sexpr)) bound-vars)))
        (apply append (map (lambda (e) (free-variables e new-bound)) (pair (third sexpr) (map second (second sexpr)))))))
+    ((let? sexpr)
+     (let ((new-bound (append (map def->name (let->bindings sexpr)) bound-vars)))
+       (append (apply append (map (lambda (e) (free-variables e bound-vars)) (map def->val (let->bindings sexpr))))
+               (free-variables (let->body sexpr) new-bound))))
     ((quoted? sexpr) '())
     ((lambda? sexpr) (free-variables (lambda-body sexpr) (let loop ((params (lambda-parameters sexpr)))
                                                            (if (null? params)
