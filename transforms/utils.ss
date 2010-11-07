@@ -27,11 +27,13 @@
          make-parameter
          pretty-print
          assert
+         assert-with-info
          format
          primitives
          primitive?
          pe
-         never?)
+         never?
+         p-or)
  
  (import (_srfi :1)
          (rnrs)
@@ -44,6 +46,11 @@
                make-parameter
                pretty-print
                format))
+
+ (define-syntax assert-with-info
+   (syntax-rules ()
+     ((_ v info) (begin (when (not v) (pretty-print info))
+                        (assert v)))))
 
  (define (pe . args)
    (for-each display args))
@@ -109,5 +116,9 @@
    (delete-duplicates (apply append lsts)))
 
  (define (never? _) #f)
+
+ (define (p-or . preds)
+   (lambda args
+     (any (lambda (x) x) (map (lambda (pred) (apply pred args)) preds))))
 
  )

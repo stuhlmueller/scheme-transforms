@@ -1,14 +1,15 @@
 #!r6rs
 
-;; Continuation-Passing Style
+;; Efficient Continuation-Passing Style
 
-;; based on http://github.com/darius/selfcentered
+;; based on "Design concepts in programming languages"
+;; by FA Turbak, DK Gifford, MA Sheldon
 
 ;; input language:
-;; self-eval | primitive | lambda | begin | if | (A B) | top-level-begin-define
+;; top-level-begin-define | self-eval | primitive | lambda | begin | if | (A B)
 
 ;; output language:
-;; self-eval | primitive | lambda | if | (A B) | apply | top-level-begin-define
+;; top-level-begin-define | self-eval | primitive | lambda | if | (A B) | apply | let
 
 (library
 
@@ -18,116 +19,177 @@
 
  (import (rnrs)
          (_srfi :1) ; lists
+         (transforms common)
          (transforms syntax)
          (transforms utils))
 
- ;; e, k -> e
- (define (cps e k)
-   ((cps-converter e) e k))
+ (define (cps-rename s)
+   (string->symbol (string-append "cps-" (symbol->string s))))
 
- ;; [e], k -> e
- (define (cps* es k)
-   (if (null? es)
-       (k '())
-       (let ([k1 (ngensym 'k*)])
-         (cps (first es)
-             `(lambda (,k1) ,(cps* (rest es)
-                              (lambda (xs) (k (cons k1 xs)))))))))
+ (define (mc->exp m)
+   (let ([tmp_id (ngensym 'tmp)])
+     `(lambda (,tmp_id) ,(m tmp_id))))
+ 
+ (define (id->mc id)
+   (lambda (v)
+     `(,id ,v)))
 
- ;; e -> (e, k -> e)
+ (define (meta-cps e)
+   (cps e (lambda (x) x)))
+
+ (define (cps e mc)
+   ((cps-converter e) e mc))
+ 
  (define (cps-converter e)
    (cond [(letrec? e) (error e "letrec should have been desugared!")]
+         [(set? e) (error e "set should have been desugared")]
          [(primitive? e) cps-primitive]
          [(self-evaluating? e) cps-self-eval]
          [(lambda? e) cps-lambda]
          [(begin? e) cps-begin]
          [(if? e) cps-if]
-         [(set? e) cps-set]
          [(application? e)
           (if (primitive? (app->opt e))
               cps-primitive-application
               cps-application)]
          [else (error e "unknown expr type")]))
 
- (define (cps-primitive e k)
-   `(,k ,(cps-rename e)))
+ (define (cps-self-eval e mc)
+   (mc e))
+
+ ;; FIXME: rename e?
+ (define (cps-primitive e mc)
+   (mc (cps-rename e)))
+
+ ;; (define (cps-lambda e mc)
+ ;;   (let ([id_abs (ngensym 'abs)]
+ ;;         [id_k (ngensym 'k)]
+ ;;         [args (lambda->args e)]
+ ;;         [body (lambda->body e)])
+ ;;     `(let ([,id_abs (lambda (,@args ,id_k) ,(cps body (id->mc id_k)))])
+ ;;        ,(mc id_abs))))
+
+ ;; let-free:
+ (define (cps-lambda e mc)
+   (let ([id_abs (ngensym 'abs)]
+         [id_k (ngensym 'k)]
+         [args (lambda->args e)]
+         [body (lambda->body e)])
+     (mc `(lambda (,id_k . ,args) ,(cps body (id->mc id_k))))))
+
+ (define (cps-application e mc)
+   (cps-application* e '() mc))
  
- (define (cps-self-eval e k)
-   `(,k ,e))
+ ;; (define (cps-application* es vals mc)
+ ;;   (if (null? es)
+ ;;       (let ([id_k (ngensym 'k)])
+ ;;         `(let ([,id_k ,(mc->exp mc)])
+ ;;            (,@(reverse vals) ,id_k)))
+ ;;       (cps (first es)
+ ;;            (lambda (v)
+ ;;              (cps-application* (rest es) (pair v vals) mc)))))
 
-(define (cps-lambda e k)
-  `(,k ,(cps-defined-lambda e)))
+ ;; let-free:
+ (define (cps-application* es vals mc)
+   (if (null? es)
+       (let* ([rvals (reverse vals)]
+              [opt (first rvals)]
+              [ops (drop rvals 1)]
+              [k (mc->exp mc)])
+         `(,opt ,k ,@ops))
+       (cps (first es)
+            (lambda (v)
+              (cps-application* (rest es) (pair v vals) mc)))))
 
-(define (cps-defined-lambda e)
-  (let ([k1 (ngensym 'kl)])  
-    `(lambda (,k1 . ,(lambda->args e))
-       ,(cps (lambda->body e) k1))))
+ (define (cps-primitive-application e mc)
+   (cps-primitive-application* (app->opt e)
+                               (app->ops e)
+                               '()
+                               mc))
 
-(define (cps-set e k)
-  (let ([r (ngensym 'r)])
-    (cps (set->val e)
-         `(lambda (,r)
-            (,k (set! ,(set->var e) ,r))))))
+ ;; (define (cps-primitive-application* opt ops vals mc)
+ ;;   (if (null? ops)
+ ;;       (let ([id_ans (ngensym 'ans)])
+ ;;         `(let ([,id_ans (,opt ,@(reverse vals))])
+ ;;            ,(mc id_ans)))
+ ;;       (cps (first ops)
+ ;;            (lambda (v)
+ ;;              (cps-primitive-application* opt (rest ops) (pair v vals) mc)))))
 
-(define (cps-begin e k)
-  (if (= (length e) 2)
-      (cps (second e) k)
-      (let ([k1 (ngensym 'kb)])      
-        (cps (second e)
-             `(lambda (,k1) ,(cps-begin `(begin . ,(cddr e)) k))))))
+ ;; let-free:
+ (define (cps-primitive-application* opt ops vals mc)
+   (if (null? ops)
+       (mc `(,opt ,@(reverse vals)))
+       (cps (first ops)
+            (lambda (v)
+              (cps-primitive-application* opt (rest ops) (pair v vals) mc)))))
+ 
+ ;; (define (cps-if e mc)
+ ;;   (let ([test (if->test e)]
+ ;;         [cons (if->cons e)]
+ ;;         [alt (if->alt e)]
+ ;;         [id_kif (ngensym 'kif)])
+ ;;     (cps test
+ ;;          (lambda (v)
+ ;;            `(let ([,id_kif ,(mc->exp mc)])
+ ;;               (if ,v
+ ;;                   ,(cps cons (id->mc id_kif))
+ ;;                   ,(cps alt (id->mc id_kif))))))))
 
-(define (cps-if e k)
-  (let ([k1 (ngensym 'ki)]
-        [ce (cps (if->cons e) k)]
-        [ae (cps (if->alt e) k)])
-    (cps (if->pred e)
-         `(lambda (,k1)
-            (if ,k1 ,ce ,ae)))))
+ ;; let-free:
+ (define (cps-if e mc)
+   (let ([test (if->test e)]
+         [cons (if->cons e)]
+         [alt (if->alt e)]
+         [id_kif (ngensym 'kif)])
+     (cps test
+          (lambda (v)
+            `(let ([,id_kif ,(mc->exp mc)])
+               (if ,v
+                   ,(cps cons (id->mc id_kif))
+                   ,(cps alt (id->mc id_kif))))))))
 
-(define (cps-primitive-application e k)
-  (cps* (app->ops e)
-        (lambda (xs) `(,(cps-rename (app->opt e)) ,k . ,xs))))
+ (define (cps-begin e mc)
+   (cond [(null? (cdr e)) (mc '(void))] ;; (begin)
+         [(null? (cddr e)) (cps (cadr e) mc)] ;; (begin E)
+         [else (let ([kb (ngensym 'b)])      
+                 (cps (second e)
+                      (lambda (v)
+                        `(let ([,kb ,v])
+                           ,(cps `(begin ,@(cddr e)) mc)))))]))
 
-(define (cps-application e k)
-  (cps* e (lambda (x) (let ([f (first x)]
-                       [xs (rest x)])
-                   `(,f ,k . ,xs)))))
+ (define (top-cps e)
+   ((begin-define-transform
+     (lambda (def)
+       (let ([e (definition->value def)]
+             [n (definition->name def)])
+         `(define ,n
+            ,(cond [(or (lambda? e) (church-make-stateless-xrp? e)) (cps e (lambda (x) x))]
+                   [(symbol? e) e]
+                   [else (error e "top-cps: cannot handle expr")]))))
+     (lambda (e)
+       (meta-cps e)))
+    e))
 
-(define (cps-rename s)
-   (string->symbol (string-append "cps-" (symbol->string s))))
-
-(define (cps-primitives ps)
+ (define (cps-primitives ps)
   `(,@(map (lambda (p) `(define ,(cps-rename p)
                      (lambda (k . args) (k (apply ,p args)))))
            ps)))
 
-(define (top-cps e)
-  (let ([k (let ([v (ngensym 'v)])
-             `(lambda (,v) ,v))])    
-    (if (begin? e)
-        (let* ([defs (begin->defs e)]
-               [nondefs (begin->nondefs e)]
-               [cps-e (cps (begin-wrap nondefs) k)])
-          `(begin
-             ,@(map (lambda (def)
-                      (begin (assert (lambda? (definition->value def)))
-                             `(define
-                                ,(definition->name def)
-                                ,(cps-defined-lambda (definition->value def)))))
-                    defs)
-             ,cps-e))
-        (cps e k))))
+ ;; meaning of primitives: globally free variables that are assumed to
+ ;; be Scheme functions
+ ;; - for primitives, cps-ified version is added (apply)
+ ;; - for old defined lambdas, args are extended and body is cps-ified
+ (define (cps-transform e . args)
+   (let ([bound-vars (if (null? args) '() (first args))])
+     (parameterize
+      ([primitives (get-primitives e (append (list 'set! 'church-true 'church-false) bound-vars))])
+      (add-defines
+       (top-cps e)
+       (cps-primitives (primitives))))))
 
-;; meaning of primitives: globally free variables that are assumed to
-;; be Scheme functions
-;; - for primitives, cps-ified version is added (apply)
-;; - for old defined lambdas, args are extended and body is cps-ified
-(define (cps-transform e . args)
-  (let ([bound-vars (if (null? args) '() (first args))])
-    (parameterize
-     ([primitives (get-primitives e (cons 'set! bound-vars))])
-     (add-defines
-      (top-cps e)
-      (cps-primitives (primitives))))))
-
+ ;; (add-defines
+ ;;  (top-cps e)
+ ;;  (cps-primitives (primitives))) 
+ 
  )

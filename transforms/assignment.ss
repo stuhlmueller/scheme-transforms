@@ -6,10 +6,10 @@
 ;; by FA Turbak, DK Gifford, MA Sheldon
 
 ;; input language:
-;; self-eval | primitive | lambda | begin | if | set! | (A B)
+;; top-level-begin-define | self-eval | primitive | lambda | begin | if | set! | (A B)
 
 ;; output language:
-;; self-eval | primitive | lambda | begin | if | (A B) | top-level-begin-define
+;; top-level-begin-define | self-eval | primitive | lambda | begin | if | (A B)
 
 (library
 
@@ -19,6 +19,7 @@
 
  (import (rnrs)
          (_srfi :1) ; lists
+         (transforms common)
          (transforms syntax)
          (transforms utils))
 
@@ -101,9 +102,14 @@
      (define set-cell! (lambda (c v) (set-cdr! c v)))
      (define cell-ref (lambda (c) (cdr c)))))
 
+ (define (top-amt e)
+   ((begin-define-transform
+     (lambda (def) (mapsub (lambda (e) (amt '() e)) def))
+     (lambda (e) (amt '() e))) e))
+
  (define (assignment-transform e)
    (parameterize ([primitives (get-primitives e)])
-                 (add-defines (amt '() e)
+                 (add-defines (top-amt e)
                               amt-primitives)))
 
  )

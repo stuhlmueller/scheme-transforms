@@ -21,7 +21,7 @@
          lambda?
          letrec?
          get-free-vars
-         if->pred
+         if->test
          if->cons
          if->alt
          if?
@@ -47,7 +47,8 @@
          add-defines
          begin->nondefs
          begin->defs
-         begin-wrap)
+         begin-wrap
+         church-make-stateless-xrp?)
 
  (import (rnrs)
          (_srfi :1) ; lists
@@ -71,7 +72,7 @@
  (define application? pair?)
  (define app->opt first)
  (define app->ops rest)
- (define if->pred second)
+ (define if->test second)
  (define if->cons third)
  (define if->alt fourth)
  (define (apply? e) (tagged-list? e 'apply))
@@ -91,6 +92,9 @@
  (define lambda-app->args cadar)
  (define lambda-app->body caddar)
  (define lambda-app->ops cdr)
+
+ (define (church-make-stateless-xrp? e)
+   (tagged-list? e 'church-make-stateless-xrp))
 
  (define symbol-index 0)
  (define (ngensym c)

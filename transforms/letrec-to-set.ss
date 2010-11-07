@@ -3,10 +3,10 @@
 ;; Letrec to Set
 
 ;; input language:
-;; self-eval | primitive | lambda | if | (A B) | begin | set! | letrec
+;; top-level-begin-define | self-eval | primitive | lambda | if | (A B) | begin | set! | letrec
 
 ;; output language:
-;; self-eval | primitive | lambda | if | (A B) | begin | set!
+;; top-level-begin-define | self-eval | primitive | lambda | if | (A B) | begin | set!
 
 (library
 
@@ -17,10 +17,12 @@
  (import (rnrs)
          (_srfi :1) ; lists
          (transforms syntax)
-         (transforms utils))
+         (transforms utils)
+         (transforms common))
 
  (define (lrs e)
    (cond
+    [(definition? e) (error e "letrec-to-set: cannot handle expr type")]
     [(primitive? e) e]
     [(self-evaluating? e) e]
     [(lambda? e) `(lambda ,(lambda->args e) ,(lrs (lambda->body e)))]
@@ -33,13 +35,17 @@
              ,@(map (lambda (n v) `(set! ,n ,(lrs v))) names vals)
              ,(lrs (letrec->body e))))
          ,@(make-list (length names) '#f)))]
-    [(or (if? e) (begin? e) (set? e)) (mapsub lrs e)]
+    [(or (if? e) (begin? e) (set? e) (definition? e)) (mapsub lrs e)]
     [(application? e) (map lrs e)]
     [else (error e "letrec-to-set: cannot handle expr type")]))
 
+ (define (top-lrs e)
+   ((begin-define-transform
+     (lambda (def) (mapsub lrs def))
+     lrs) e))
+
  (define (letrec-to-set e)
    (parameterize ([primitives (get-primitives e)])
-                 (lrs e)))
- 
+                 (top-lrs e)))
 
  )

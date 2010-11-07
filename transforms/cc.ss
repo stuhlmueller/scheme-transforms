@@ -5,10 +5,10 @@
 ;; based on goo.gl/HdsQ
 
 ;; input language:
-;; self-eval | primitive | lambda | if | (A B) | apply | top-level-begin-define
+;; top-level-begin-define | self-eval | primitive | lambda | if | (A B) | apply
 
 ;; output language:
-;; self-eval | primitive | lambda | if | (A B) | apply | top-level-begin-define
+;; top-level-begin-define | self-eval | primitive | lambda | if | (A B) | apply
 
 (library
 
@@ -18,6 +18,7 @@
 
  (import (rnrs)
          (_srfi :1) ; lists
+         (transforms common)
          (transforms syntax)
          (transforms utils))
 
@@ -178,26 +179,23 @@
                 env)))))
 
  (define (top-cc e bound-vars)
-   (display "primitives : ")
-   (display (primitives))
-   (display "\n")
    (if (begin? e)
-        (let* ([defs (begin->defs e)]
-               [nondefs (begin->nondefs e)]
-               [bound? (bound-predicate (append bound-vars
-                                                (map definition->name defs)))]
-               [cc-e (cc (begin-wrap nondefs) bound? '())])
-          `(begin
-             ,@(map (lambda (def)
-                      (begin (assert (lambda? (definition->value def)))
-                             `(define
-                                ,(definition->name def)
-                                ,(close-lambda (definition->value def) bound? '()))))
-                    defs)
-             ,cc-e))
-        (cc e (bound-predicate bound-vars) '())))
+       (let* ([defs (begin->defs e)]
+              [nondefs (begin->nondefs e)]
+              [bound? (bound-predicate (append bound-vars
+                                               (map definition->name defs)))])
+         ((begin-define-transform
+           (lambda (def)
+             (let ([e (definition->value def)]
+                   [n (definition->name def)])
+               `(define ,n               
+                  ,(cond [(lambda? e) (close-lambda e bound? '())]
+                         [(church-make-stateless-xrp? e) (cc e bound? '())]
+                         [(symbol? e) e]                     
+                         [else (error e "top-cc: cannot handle expr")]))))
+           (lambda (e) (cc e bound? '()))) e))
+       (cc e (bound-predicate bound-vars) '())))
 
- ;; (1) get free variables of overall expression
  (define (cc-transform e . args)
    (let ([bound-vars (if (null? args) '() (first args))])
      (parameterize ([primitives (get-primitives e '(set!))])
