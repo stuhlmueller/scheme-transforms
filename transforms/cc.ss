@@ -20,6 +20,7 @@
 
  (import (rnrs)
          (_srfi :1) ; lists
+         (only (scheme-tools) symbol-maker)
          (transforms common)
          (transforms syntax)
          (transforms utils))
@@ -54,7 +55,7 @@
     [(apply? e) close-apply] ;; partial support
     [(lambda? e) close-lambda]
     [(if? e) close-if]
-    [(lambda-let? e) close-lambda-let]
+;;    [(lambda-let? e) close-lambda-let]
     [(let? e) close-let]
     [(primitive? e) close-primitive]
     [(self-evaluating? e) close-self-evaluating]    
@@ -119,7 +120,14 @@
      `(let ([,opname ,op])
         ((vector-ref ,opname 0)
          ,opname 
-          ,@(close-sequence (app->ops e) bound? free)))))
+         ,@(close-sequence (app->ops e) bound? free)))))
+
+ (define code-sym (symbol-maker 'code))
+ 
+ (define (make-vector-expr lambda-expr args)
+   `(vector ,lambda-expr
+            ',(code-sym) ;; ',lambda-expr
+            ,@args))
 
  ;; A LAMBDA is converted to a closure.  The body is scanned for free
  ;; identifiers that are bound into the closure along with the
@@ -129,32 +137,32 @@
    (let* ((self (ngensym 'self))
           (formals (lambda->args e))
           (free-in-expr (get-free-vars e (append (primitives) reserved-words))))
-     `(vector
-       (lambda (,self . ,formals)
+     (make-vector-expr
+      `(lambda (,self . ,formals)
          ,(cc
            (lambda->body e)
            (bound-predicate formals)
            (self-refs self free-in-expr)))
-       ,@(map (lambda (name)
-                (closure-env-ref name bound? free))
-              free-in-expr))))
+      (map (lambda (name)
+             (closure-env-ref name bound? free))
+           free-in-expr))))
 
  ;; Extract code expr, bind to var, then construct vector from var
  ;; in order to maintain cps style. 
  ;; In BODY of (lambda (self a b c) (let ([d ...]) BODY)), we access a b c directly.
  ;; whereas in (let ([d ...]) (lambda (self a b c) BODY)) we don't.
- (define (close-lambda-let e bound? free)
-   (let* ([closure-expr (cc (def->val (first (let->bindings e))) bound? free)]
-          [closure-name (def->name (first (let->bindings e)))]
-          [proc-expr (list-ref closure-expr 1)]
-          [make-closure-expr (lambda (proc-expr) `(vector ,proc-expr ,@(cddr closure-expr)))]
-          [proc-name (ngensym 'p)])
-     `(let ([,proc-name ,proc-expr])
-        (let ([,closure-name ,(make-closure-expr proc-name)])
-          ,(cc (let->body e)
-               (p-or bound?
-                     (bound-predicate closure-name))
-               free)))))
+ ;; (define (close-lambda-let e bound? free)
+ ;;   (let* ([closure-expr (cc (def->val (first (let->bindings e))) bound? free)]
+ ;;          [closure-name (def->name (first (let->bindings e)))]
+ ;;          [proc-expr (list-ref closure-expr 1)]
+ ;;          [make-closure-expr (lambda (proc-expr) (make-vector-expr proc-expr (cdddr closure-expr)))] ;; cddr
+ ;;          [proc-name (ngensym 'p)])
+ ;;     `(let ([,proc-name ,proc-expr])
+ ;;        (let ([,closure-name ,(make-closure-expr proc-name)])
+ ;;          ,(cc (let->body e)
+ ;;               (p-or bound?
+ ;;                     (bound-predicate closure-name))
+ ;;               free)))))
 
  ;; FIXME: verify that this is correct (maintains cps in as far as necessary)
  (define (close-let e bound? free)
@@ -169,9 +177,10 @@
  (define (close-primitive e bound? free)
    (let* ((self (ngensym 'self))
           (args (ngensym 'args)))
-     `(vector
-       (lambda (,self . ,args)
-         (apply ,e ,args)))))
+     (make-vector-expr
+      `(lambda (,self . ,args)
+         (apply ,e ,args))
+      '())))
  
  ;; self-sym is a symbol, e.g. self12
  ;; free is the list of variables occuring free in an expression
@@ -180,7 +189,7 @@
  ;; thus, we can access variables using the self variable:
  ;; (vector (lambda (self) ...) a b ...)
  (define (self-refs self-sym free)
-   (let loop ((ii 1) (names free) (env '()))
+   (let loop ((ii 2) (names free) (env '())) ;; 1
      (if (null? names)
          env
          (loop (+ ii 1)
@@ -190,30 +199,48 @@
                 `(vector-ref ,self-sym ,ii)
                 env)))))
 
+ (define (def->reference-fixes def)
+   (let ([name (definition->name def)]
+         [refs (cdddr (definition->value def))]) ;; cddr
+     (map (lambda (ref i)
+            `(vector-set! ,name ,(+ i 2) ,ref)) ;; 1
+          refs (iota (length refs)))))
+ 
+ (define (fix-recursive-references e)
+   (assert-with-info (begin? e) e)
+   (let* ([defs (begin->defs e)]
+          [vector-defs (filter (lambda (def) (tagged-list? (definition->value def) 'vector)) defs)]
+          [nondefs (begin->nondefs e)])
+     `(begin
+        ,@defs
+        ,@(apply append (map def->reference-fixes vector-defs))
+        ,@nondefs)))
+
+ ;; need to initialize to #f, generate list of vector-set!s to adjust
+ ;; recursive references?
  (define (top-cc e bound-vars)
    (if (begin? e)
        (let* ([defs (begin->defs e)]
               [nondefs (begin->nondefs e)]
               [bound? (bound-predicate (append bound-vars
-                                               (map definition->name defs)))])
-         ((begin-define-transform
-           (lambda (def)
-             (let ([e (definition->value def)]
-                   [n (definition->name def)])
-               `(define ,n               
-                  ,(cond [(lambda? e) (close-lambda e bound? '())]
-                         [(church-make-stateless-xrp? e) (cc e bound? '())]
-                         [(symbol? e) e]                     
-                         [else (error e "top-cc: cannot handle expr")]))))
-           (lambda (e) (cc e bound? '()))) e))
+                                               (map definition->name defs)))]
+              [transformer (begin-define-transform
+                            (lambda (def)
+                              (let ([e (definition->value def)]
+                                    [n (definition->name def)])
+                                `(define ,n               
+                                   ,(cond [(lambda? e) (close-lambda e bound? '())]
+                                          [(symbol? e) e]
+                                          [else (cc e bound? '())]))))
+                            (lambda (e) (cc e bound? '())))])
+         (fix-recursive-references (transformer e)))
        (cc e (bound-predicate bound-vars) '())))
 
  (define reserved-words '(set! let apply))
 
  (define (cc-transform e . args)
    (let ([bound-vars (if (null? args) '() (first args))])
-     (parameterize ([primitives (get-primitives e reserved-words)])
-                   (pretty-print (primitives))
+     (parameterize ([primitives (get-primitives e (append reserved-words bound-vars))])
                    (top-cc e bound-vars))))
 
  )
