@@ -11,7 +11,8 @@
          redex-transform
          transform)
 
- (import (transforms cps)
+ (import (rnrs)
+         (transforms cps)
          (transforms cc)
          (transforms assignment)
          (transforms letrec-to-set)
