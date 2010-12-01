@@ -84,7 +84,7 @@
  (define apply->args cddr)
  (define (let? e) (tagged-list? e 'let))
  (define let->bindings second)
- (define let->body third)
+ (define (let->body e) (begin (assert-with-info (= (length e) 3) e) (third e)))
  (define (lambda-let? e) (and (tagged-list? e 'let)
                          (= (length (let->bindings e)) 1)
                          (lambda? (def->val (first (let->bindings e))))))
@@ -172,12 +172,17 @@
  (define (begin->nondefs e)
    (filter (lambda (ei) (not (definition? ei))) (cdr e)))
 
- (define (add-defines e defs)
+ (define (add-defines e defs . top)
    (if (begin? e)
-       `(begin
-          ,@(begin->defs e)
-          ,@defs
-          ,@(begin->nondefs e))
+       (if (not (null? top))
+           `(begin
+              ,@defs              
+              ,@(begin->defs e)
+              ,@(begin->nondefs e))
+           `(begin
+              ,@(begin->defs e)
+              ,@defs
+              ,@(begin->nondefs e)))
        `(begin
           ,@defs
           ,e)))
