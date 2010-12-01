@@ -38,7 +38,7 @@
 
  (define (evaluate expr)
    (let ([e (top-level-defines->letrec expr)])
-     (eval e (environment '(rnrs) '(rnrs mutable-pairs)))))
+     (eval e (environment '(rnrs) '(rnrs mutable-pairs) '(only (ikarus) void)))))
  
  (define (run-test transformer checker expr)
    (display "Running Test:\n")
