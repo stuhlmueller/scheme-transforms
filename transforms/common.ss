@@ -19,13 +19,7 @@
          (let* ([defs (begin->defs e)]
                 [nondefs (begin->nondefs e)])
            `(begin
-              ,@(map (lambda (def)
-                       (begin
-                         (assert-with-info
-                          ((p-or lambda? church-make-stateless-xrp? symbol?) (definition->value def))
-                          def)
-                         (def-transformer def)))
-                     defs)
+              ,@(map def-transformer defs)
               ,(body-transformer (begin-wrap nondefs))))
          (body-transformer e))))
 
