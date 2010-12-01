@@ -27,6 +27,8 @@
      ((lambda (f) (f 1 2)) cons)
      ((lambda (f) (f 1 2 3)) (lambda (x y z) (list z y x)))
      ((lambda (g) (g ((lambda (f) (f 'ok 2)) g) 2)) cons)
+     (if #t (display "ok") (void))
+     (if #f (display "ok") (void))
      ))
 
  ;; language: common + apply
@@ -43,6 +45,13 @@
  (define begin-tests
    '(
      (begin 1 2 3)
+     (begin
+       (define foo (lambda (n) (if (= n 0) 'ok (foo (- n 1)))))
+       (foo 5))
+     (begin
+       (define foo (lambda (n) (if (= n 0) 'ok-foo (bar (- n 1)))))
+       (define bar (lambda (n) (if (= n 0) 'ok-bar (foo (- n 1)))))
+       (list (foo 5) (foo 6)))
      ))
 
  ;; language: common + begin + set
