@@ -26,7 +26,7 @@
  (define primitives (make-parameter '()))
 
  (define (primitive? var)
-   (memq var (primitives)))  
+   (memq var (primitives)))
 
  (define (cps-rename s)
    (string->symbol (string-append "cps-" (symbol->string s))))
@@ -83,14 +83,25 @@
  (define (cps-application e mc)
    (cps-application* e '() mc))
  
+ ;; (define (cps-application* es vals mc)
+ ;;   (if (null? es)
+ ;;       (let* ([id_k (ngensym 'k)]
+ ;;              [rvals (reverse vals)]
+ ;;              [opt (first rvals)]
+ ;;              [ops (drop rvals 1)])
+ ;;         `(let ([,id_k ,(mc->exp mc)])
+ ;;            (,opt ,id_k ,@ops)))
+ ;;       (cps (first es)
+ ;;            (lambda (v)
+ ;;              (cps-application* (rest es) (pair v vals) mc)))))
+
  (define (cps-application* es vals mc)
    (if (null? es)
        (let* ([id_k (ngensym 'k)]
               [rvals (reverse vals)]
               [opt (first rvals)]
               [ops (drop rvals 1)])
-         `(let ([,id_k ,(mc->exp mc)])
-            (,opt ,id_k ,@ops)))
+         `(,opt ,(mc->exp mc) ,@ops))
        (cps (first es)
             (lambda (v)
               (cps-application* (rest es) (pair v vals) mc)))))
@@ -111,17 +122,27 @@
             (lambda (v)
               (cps-primitive-application* opt (rest ops) (pair v vals) mc)))))
 
+ ;; (define (cps-if e mc)
+ ;;   (let ([test (if->test e)]
+ ;;         [cons (if->cons e)]
+ ;;         [alt (if->alt e)]
+ ;;         [id_kif (ngensym 'kif)])
+ ;;     (cps test
+ ;;          (lambda (v)
+ ;;            `(let ([,id_kif ,(mc->exp mc)])
+ ;;               (if ,v
+ ;;                   ,(cps cons (id->mc id_kif))
+ ;;                   ,(cps alt (id->mc id_kif))))))))
+
  (define (cps-if e mc)
    (let ([test (if->test e)]
          [cons (if->cons e)]
-         [alt (if->alt e)]
-         [id_kif (ngensym 'kif)])
+         [alt (if->alt e)])
      (cps test
           (lambda (v)
-            `(let ([,id_kif ,(mc->exp mc)])
-               (if ,v
-                   ,(cps cons (id->mc id_kif))
-                   ,(cps alt (id->mc id_kif))))))))
+            `(if ,v
+                 ,(cps cons mc)
+                 ,(cps alt mc))))))
 
  (define (cps-begin e mc)
    (cond [(null? (cdr e)) (mc '(void))] ;; (begin)
@@ -151,6 +172,8 @@
                      (lambda (k . args) (k (apply ,p args)))))
            ps)))
 
+ (define reserved-words '(set! let apply))
+ 
  ;; meaning of primitives: globally free variables that are assumed to
  ;; be Scheme functions
  ;; - for primitives, cps-ified version is added (apply)
@@ -158,9 +181,9 @@
  (define (cps-transform e . args)
    (let ([bound-vars (if (null? args) '() (first args))])
      (parameterize
-      ([primitives (get-primitives e (append (list 'set! 'church-true 'church-false) bound-vars))])
-      (add-defines
-       (top-cps e)
-       (cps-primitives (primitives))))))
+      ([primitives (get-primitives e (append reserved-words bound-vars))])
+      (add-defines (top-cps e)
+                   (cps-primitives (primitives))
+                   'top))))
 
  )
