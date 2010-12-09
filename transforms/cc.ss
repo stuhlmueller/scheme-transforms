@@ -20,7 +20,7 @@
 
  (import (rnrs)
          (_srfi :1) ; lists
-         (only (scheme-tools) symbol-maker)
+         (scheme-tools object-id)
          (transforms common)
          (transforms syntax)
          (transforms utils))
@@ -122,11 +122,9 @@
          ,opname 
          ,@(close-sequence (app->ops e) bound? free)))))
 
- (define code-sym (symbol-maker 'code))
- 
  (define (make-vector-expr lambda-expr args)
    `(vector ,lambda-expr
-            ',(code-sym) ;; ',lambda-expr
+            ',(object->id lambda-expr) ;; ',lambda-expr
             ,@args))
 
  ;; A LAMBDA is converted to a closure.  The body is scanned for free
