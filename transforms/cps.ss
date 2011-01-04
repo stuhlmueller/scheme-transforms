@@ -162,6 +162,7 @@
             ,(cond [(church-make-stateless-xrp? e) (cps e (lambda (x) x))]
                    [(lambda? e) (cps-lambda/toplevel e (lambda (x) x))]
                    [(symbol? e) e]
+                   [(self-evaluating? e) e]
                    [else (error e "top-cps: cannot handle expr")]))))
      (lambda (e)
        (meta-cps e)))
