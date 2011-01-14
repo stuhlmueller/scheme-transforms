@@ -1,5 +1,0 @@
-;; forward-references in non-lambdas are not supported
-(letrec ([baz (list foo)]
-         [foo (lambda () (bar))]
-         [bar (lambda () (list foo bar baz 1))])
-  baz)
