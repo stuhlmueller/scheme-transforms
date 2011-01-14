@@ -4,59 +4,60 @@
 
  (transforms syntax)
 
- (export lambda->args
-         lambda->body
-         letrec->defns
-         letrec->body
-         application?
-         app->opt
+ (export add-defines
          app->ops
-         ngensym
-         self-evaluating?
-         lambda-application?
+         app->opt
+         application?
+         apply->args
+         apply->proc
+         apply?
+         begin->defs
+         begin->nondefs
+         begin-wrap
+         begin?
+         church-make-stateless-xrp?
+         def->name
+         def->val
+         definition->name
+         definition->value
+         definition?
+         form?
+         free-variables
+         get-free-vars
          get-primitives
+         if->alt
+         if->cons
+         if->test
+         if?
+         lambda->args
+         lambda->body
          lambda-app->args
          lambda-app->body
          lambda-app->ops
-         lambda?
-         letrec?
-         get-free-vars
-         if->test
-         if->cons
-         if->alt
-         if?
-         begin?
-         set?
-         set->var
-         set->val
-         def->name
-         def->val
-         mem?
-         lambda-parameters
+         lambda-application?
          lambda-body
-         quoted?
-         definition?
-         definition->name
-         definition->value
-         free-variables
-         mapsub
-         subexps
-         apply?
-         apply->proc
-         apply->args
-         add-defines
-         begin->nondefs
-         begin->defs
-         begin-wrap
-         church-make-stateless-xrp?
          lambda-let?
-         let?
+         lambda-parameters
+         lambda?
          let->bindings
          let->body
-         tag?
+         let?
+         letrec->body
+         letrec->defns
+         letrec?
+         make-tag
+         mapsub
+         mem?
+         ngensym
+         quoted?
+         self-evaluating?
+         set->val
+         set->var
+         set?
+         subexps
          tag->expr
          tag->name
-         make-tag)
+         tag?)
 
  (import (rnrs)
          (_srfi :1) ; lists
@@ -81,7 +82,9 @@
  (define letrec->body third)
  (define def->name first)
  (define def->val second)
- (define application? pair?)
+ (define (application? e)
+   (and (pair? e)
+        (not (form? e))))
  (define app->opt first)
  (define app->ops rest)
  (define if->test second)
@@ -100,9 +103,21 @@
  (define (begin? e) (tagged-list? e 'begin))
  (define (if? e) (tagged-list? e 'if))
  (define (set? e) (tagged-list? e 'set!))
-
  (define set->var second)
  (define set->val third)
+
+ (define (form? e)
+   (or (tag? e)
+       (mem? e)
+       (lambda? e)
+       (quoted? e)
+       (definition? e)
+       (letrec? e)
+       (if? e)
+       (apply? e)
+       (let? e)
+       (begin? e)
+       (set? e)))
  
  (define (lambda-application? e)
    (and (application? e)
