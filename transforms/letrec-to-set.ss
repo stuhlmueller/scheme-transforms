@@ -3,10 +3,10 @@
 ;; Letrec to Set
 
 ;; input language:
-;; top-level-begin-define | self-eval | primitive | lambda | if | (A B) | begin | set! | letrec
+;; tag | top-level-begin-define | self-eval | primitive | lambda | if | (A B) | begin | set! | letrec
 
 ;; output language:
-;; top-level-begin-define | self-eval | primitive | lambda | if | (A B) | begin | set!
+;; tag | top-level-begin-define | self-eval | primitive | lambda | if | (A B) | begin | set!
 
 (library
 
@@ -28,6 +28,7 @@
  (define (lrs e)
    (cond
     [(definition? e) (error e "letrec-to-set: cannot handle expr type")]
+    [(tag? e) (make-tag (lrs (tag->expr e)) (tag->name e))]
     [(primitive? e) e]
     [(self-evaluating? e) e]
     [(lambda? e) `(lambda ,(lambda->args e) ,(lrs (lambda->body e)))]

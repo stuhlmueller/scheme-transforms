@@ -52,12 +52,20 @@
          lambda-let?
          let?
          let->bindings
-         let->body)
+         let->body
+         tag?
+         tag->expr
+         tag->name
+         make-tag)
 
  (import (rnrs)
          (_srfi :1) ; lists
          (transforms utils))
- 
+
+ (define (tag? sexpr) (tagged-list? sexpr 'tag))
+ (define tag->expr second)
+ (define tag->name third)
+ (define (make-tag expr name) (list 'tag expr name))
  (define (mem? sexpr) (tagged-list? sexpr 'mem))
  (define (lambda-parameters exp) (cadr exp))
  (define (lambda-body exp) (caddr exp))

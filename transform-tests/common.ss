@@ -20,6 +20,7 @@
      #t
      (cons 1 2)
      (not #t)
+     (tag (not #t) 'tag1)
      ((lambda (y) ((lambda (f) (f 3)) (if #f (lambda (x) x) (lambda (x) y)))) 2)
      ((lambda (x) x) 'foo)
      (if (> 1 0) #t #f)
@@ -28,7 +29,9 @@
      ((lambda (f) (f 1 2 3)) (lambda (x y z) (list z y x)))
      ((lambda (g) (g ((lambda (f) (f 'ok 2)) g) 2)) cons)
      (if #t (display "ok") (void))
+     (if #t (tag (display "ok") 'tag2) (void))
      (if #f (display "ok") (void))
+     (if #f (tag (display "ok") 'tag3) (void))
      ))
 
  ;; language: common + apply
@@ -47,6 +50,9 @@
      (begin 1 2 3)
      (begin
        (define foo (lambda (n) (if (= n 0) 'ok (foo (- n 1)))))
+       (foo 5))
+     (begin
+       (define foo (lambda (n) (if (= n 0) 'ok (tag (foo (tag (- n 1) 'bar)) 'foo))))
        (foo 5))
      (begin
        (define foo (lambda (n) (if (= n 0) 'ok-foo (bar (- n 1)))))

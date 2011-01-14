@@ -6,10 +6,10 @@
 ;; by FA Turbak, DK Gifford, MA Sheldon
 
 ;; input language:
-;; top-level-begin-define | self-eval | primitive | lambda | begin | if | set! | (A B)
+;; tag | top-level-begin-define | self-eval | primitive | lambda | begin | if | set! | (A B)
 
 ;; output language:
-;; top-level-begin-define | self-eval | primitive | lambda | begin | if | (A B)
+;; tag | top-level-begin-define | self-eval | primitive | lambda | begin | if | (A B)
 
 (library
 
@@ -30,6 +30,7 @@
  
  (define (mutated-free-vars e)
    (cond [(primitive? e) '()]
+         [(tag? e) (mutated-free-vars (tag->expr e))]
          [(self-evaluating? e) '()]
          [(set? e) (pair (set->var e)
                          (mutated-free-vars (set->val e)))]
@@ -67,13 +68,17 @@
 
  ;; e -> (vars, e -> e)
  (define (amt-transformer e)
-   (cond [(symbol? e) amt-ref]
+   (cond [(tag? e) amt-tag]
+         [(symbol? e) amt-ref]
          [(self-evaluating? e) amt-self-evaluating]
          [(lambda? e) amt-lambda]
          [(set? e) amt-set]
          [(or (begin? e) (if? e)) amt-subexprs]
          [(application? e) amt-application]
          [else (error e "unknown expr type")]))
+
+ (define (amt-tag vars e)
+   (make-tag (amt vars (tag->expr e)) (tag->name e)))
 
  (define (amt-ref vars e)
    (if (contains vars e)

@@ -48,6 +48,7 @@
  (define (cps-converter e)
    (cond [(letrec? e) (error e "letrec should have been desugared!")]
          [(set? e) (error e "set should have been desugared")]
+         [(tag? e) cps-tag]
          [(primitive? e) cps-primitive]
          [(self-evaluating? e) cps-self-eval]
          [(lambda? e) cps-lambda]
@@ -58,6 +59,9 @@
               cps-primitive-application
               cps-application)]
          [else (error e "unknown expr type")]))
+
+ (define (cps-tag e mc)
+   (make-tag (cps (tag->expr e) mc) (tag->name e)))
 
  (define (cps-self-eval e mc)
    (mc e))

@@ -50,6 +50,7 @@
     [(begin? e) (error e "closure-converter: begins should have been turned into lambdas!")]
     [(set? e) (error e "closure-converter: set! should have been turned into set-cell!")]
     [(letrec? e) (error e "closure-converter: letrecs should have been desugared into set+lambda!")]
+    [(eq? e 'tag) close-tag]
     [(eq? e 'apply) (lambda (e bound? free) 'apply)]
     [(primitive-apply? e) close-primitive-apply]
     [(apply? e) close-apply] ;; partial support
@@ -83,6 +84,9 @@
          [(bound? name) name]
          [(assq name free) => cdr]
          [else (error name "unbound identifier")]))
+
+ (define (close-tag e bound? free)
+   (make-tag (cc (tag->expr e) bound? free) (tag->name e)))
 
  (define (close-self-evaluating e bound? free)
    (if (symbol? e)
