@@ -18,7 +18,7 @@
  (export assignment-transform)
 
  (import (rnrs)
-         (_srfi :1) ; lists
+         (_srfi :1)
          (transforms common)
          (transforms syntax)
          (transforms utils))
