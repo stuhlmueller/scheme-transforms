@@ -9,7 +9,7 @@
  (export begin-define-transform)
 
  (import (rnrs)
-         (_srfi :1) ; lists
+         (scheme-tools srfi-compat :1)
          (transforms syntax)
          (transforms utils))
 

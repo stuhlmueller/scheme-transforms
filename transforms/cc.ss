@@ -19,7 +19,7 @@
  (export cc-transform)
 
  (import (rnrs)
-         (_srfi :1) ; lists
+         (scheme-tools srfi-compat :1)
          (scheme-tools object-id)
          (transforms common)
          (transforms syntax)

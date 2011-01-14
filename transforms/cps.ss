@@ -18,7 +18,7 @@
  (export cps-transform)
 
  (import (rnrs)
-         (_srfi :1) ; lists
+         (scheme-tools srfi-compat :1)
          (transforms common)
          (transforms syntax)
          (transforms utils))

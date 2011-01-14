@@ -10,7 +10,7 @@
  (import (rnrs)
          (transforms utils)
          (transforms syntax)
-         (_srfi :1))
+         (scheme-tools srfi-compat :1))
 
  (define (base-check a b)
    (cond [(and (procedure? a) (procedure? b)) #t]

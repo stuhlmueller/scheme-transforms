@@ -4,7 +4,7 @@
 ;; common + begin + set! + letrec
 
 (import (rnrs)
-        (_srfi :1)
+        (scheme-tools srfi-compat :1)
         (transforms utils)
         (transforms letrec-to-set)
         (transform-tests utils)

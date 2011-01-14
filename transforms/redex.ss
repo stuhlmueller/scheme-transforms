@@ -15,7 +15,7 @@
  (export redex-transform)
 
  (import (rnrs)
-         (_srfi :1) ; lists
+         (scheme-tools srfi-compat :1)
          (only (scheme-tools) all)
          (transforms common)
          (transforms syntax)

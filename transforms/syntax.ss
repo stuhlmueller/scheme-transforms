@@ -61,7 +61,7 @@
          tagged?)
 
  (import (rnrs)
-         (_srfi :1) ; lists
+         (scheme-tools srfi-compat :1)
          (transforms utils))
 
  (define (tag? sexpr) (tagged-list? sexpr 'tag))

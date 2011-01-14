@@ -33,8 +33,8 @@
          never?
          p-or)
  
- (import (_srfi :1)
-         (rnrs)
+ (import (rnrs)
+         (scheme-tools srfi-compat :1)
          (only (ikarus)
                assert
                gensym
