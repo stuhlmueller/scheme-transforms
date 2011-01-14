@@ -6,6 +6,8 @@ Available transforms:
 * Letrec to set!
 * Assignment conversion
 * Continuation-passing style (cps)
+* Redex reduction
+* Return conversion
 * Closure-conversion (cc)
 
 
