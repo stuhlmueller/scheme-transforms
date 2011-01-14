@@ -6,7 +6,7 @@
 ;; by FA Turbak, DK Gifford, MA Sheldon
 
 ;; input language:
-;; tag | top-level-begin-define | self-eval | primitive | lambda | begin | if | set! | (A B)
+;; tag | top-level-begin-define | self-eval | primitive | lambda | if | (A B) | begin | set!
 
 ;; output language:
 ;; tag | top-level-begin-define | self-eval | primitive | lambda | begin | if | (A B)
@@ -78,7 +78,8 @@
          [else (error e "unknown expr type")]))
 
  (define (amt-tag vars e)
-   (make-tag (amt vars (tag->expr e)) (tag->name e)))
+   (make-tag (amt vars (tag->expr e))
+             (tag->name e)))
 
  (define (amt-ref vars e)
    (if (contains vars e)

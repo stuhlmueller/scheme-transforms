@@ -7,10 +7,10 @@
 ;; by FA Turbak, DK Gifford, MA Sheldon
 
 ;; input language:
-;; top-level-begin-define | self-eval | primitive | lambda | if | (A B) | (apply) | let
+;; tag | top-level-begin-define | self-eval | primitive | lambda | if | (A B) | apply | let
 
 ;; output language:
-;; top-level-begin-define | self-eval | primitive | lambda | if | (A B) | (apply) | let
+;; tag | top-level-begin-define | self-eval | primitive | lambda | if | (A B) | apply | let
 
 (library
 

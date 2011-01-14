@@ -2,6 +2,12 @@
 
 ;; eliminate unnecessary redexes introduced by cps transform
 
+;; input language:
+;; tag | top-level-begin-define | self-eval | primitive | lambda | if | (A B) | apply | let
+
+;; output language:
+;; tag | top-level-begin-define | self-eval | primitive | lambda | if | (A B) | apply | let
+
 (library
 
  (transforms redex)

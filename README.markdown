@@ -13,20 +13,29 @@ Available transforms:
 
 The following sequence shows the interface for each transform:
 
-    self-eval | primitive | lambda | if | (A B) | begin | set! | letrec
-    
+    tag | top-level-begin-define | self-eval | primitive | lambda | if | (A B) | begin | set! | letrec
+
     -- letrec-to-set -->
-    
-    self-eval | primitive | lambda | if | (A B) | begin | set!
+
+    tag | top-level-begin-define | self-eval | primitive | lambda | if | (A B) | begin | set!
     
     -- assignment -->
-    
-    self-eval | primitive | lambda | if | (A B) | begin
+
+    tag | top-level-begin-define | self-eval | primitive | lambda | begin | if | (A B)
     
     -- cps -->
     
-    self-eval | primitive | lambda | if | (A B)
+    tag | top-level-begin-define | self-eval | primitive | lambda | if | (A B) | apply | let
     
+    -- redex -->
+
+    tag | top-level-begin-define | self-eval | primitive | lambda | if | (A B) | apply | let
+
+    -- return -->
+
+    tag | top-level-begin-define | self-eval | primitive | lambda | if | (A B) | apply | let
+
     -- cc -->
-    
-    self-eval | primitive | lambda | if | (A B)
+
+    tag | top-level-begin-define | self-eval | primitive | lambda | if | (A B) | apply | let
+
