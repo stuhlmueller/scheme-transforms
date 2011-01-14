@@ -57,13 +57,17 @@
          subexps
          tag->expr
          tag->name
-         tag?)
+         tag?
+         tagged?)
 
  (import (rnrs)
          (_srfi :1) ; lists
          (transforms utils))
 
  (define (tag? sexpr) (tagged-list? sexpr 'tag))
+ (define (tagged? e name)
+   (and (tag? e)
+        (equal? (tag->name e) name)))
  (define tag->expr second)
  (define tag->name third)
  (define (make-tag expr name) (list 'tag expr name))
@@ -83,7 +87,8 @@
  (define def->name first)
  (define def->val second)
  (define (application? e)
-   (and (pair? e)
+   (and (list? e)
+        (not (null? e))
         (not (form? e))))
  (define app->opt first)
  (define app->ops rest)
