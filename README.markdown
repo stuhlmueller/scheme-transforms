@@ -9,6 +9,7 @@ Available transforms:
 * Redex reduction
 * Return conversion
 * Closure-conversion (cc)
+* Untag transform
 
 
 ### Sequence of transforms
