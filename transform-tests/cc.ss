@@ -8,6 +8,7 @@
         (transforms assignment)
         (transforms letrec-to-set)
         (transforms cc)
+        (transforms untag)
         (transform-tests utils)
         (transform-tests common))
 
@@ -18,12 +19,12 @@
          [else (equal? a b)]))
 
 (define derived-tests
-  (append (map cps-transform (append common-tests begin-tests))
-          (map (compose cps-transform assignment-transform) set-tests)
-          (map (compose cps-transform assignment-transform letrec-to-set) letrec-tests)))
+  (append (map (compose untag-transform cps-transform) (append common-tests begin-tests))
+          (map (compose untag-transform cps-transform assignment-transform) set-tests)
+          (map (compose untag-transform cps-transform assignment-transform letrec-to-set) letrec-tests)))
 
 (run-tests cc-transform
            cc-check
-           (append common-tests
-                   apply-tests
+           (append (map untag-transform common-tests)
+                   (map untag-transform apply-tests)
                    derived-tests))
