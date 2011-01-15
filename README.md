@@ -1,6 +1,11 @@
 Scheme Transforms
 =================
 
+Required:
+
+* [scheme-tools](https://github.com/stuhlmueller/scheme-tools)
+
+
 Available transforms:
 
 * Letrec to set!
