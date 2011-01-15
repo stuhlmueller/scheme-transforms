@@ -184,7 +184,8 @@
                                                                    (pair (first params) (loop (rest params)))
                                                                    (pair params bound-vars))))))
     ((if? sexpr)  (apply append (map (lambda (e) (free-variables e bound-vars)) (rest sexpr))))
-    ((application? sexpr) (apply append (map (lambda (e) (free-variables e bound-vars)) sexpr)))
+    
+    (((p-or application? tag? mem? apply? set?) sexpr) (apply append (map (lambda (e) (free-variables e bound-vars)) sexpr)))
     ((symbol? sexpr) (if (memq sexpr bound-vars) '() (list sexpr)))
     (else '()) ))
 
