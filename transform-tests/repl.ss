@@ -4,7 +4,7 @@
         (transforms assignment)
         (transforms cps)
         (transforms cc )
-        (only (ikarus) pretty-print console-input-port)
+        (only (scheme-tools external) pretty-print console-input-port)
         (rnrs))
 
 (define (loop)

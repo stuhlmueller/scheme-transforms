@@ -35,7 +35,7 @@
  
  (import (rnrs)
          (scheme-tools srfi-compat :1)
-         (only (ikarus)
+         (only (scheme-tools external)
                assert
                gensym
                eval
