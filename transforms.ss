@@ -9,7 +9,7 @@
          assignment-transform
          letrec-to-set
          redex-transform
-         return-transform
+         call-transform
          untag-transform
          transform)
 
@@ -19,16 +19,16 @@
          (transforms assignment)
          (transforms letrec-to-set)
          (transforms redex)
-         (transforms return)
+         (transforms app)
          (transforms untag))
 
- (define (transform expr reserved-words with-returns)
+ (define (transform expr reserved-words return-calls)
   (let* ([a (letrec-to-set expr)]
          [b (assignment-transform a)]
          [c (cps-transform b reserved-words)]
          [d (redex-transform c)]
-         [e (if with-returns
-                (return-transform d)
+         [e (if return-calls
+                (app-transform d)
                 (untag-transform d))]
          [f (cc-transform e reserved-words)])
     f))

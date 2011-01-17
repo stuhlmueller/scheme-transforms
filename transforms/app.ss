@@ -1,10 +1,10 @@
 #!r6rs
 
-;; Return Conversion
+;; App Conversion
 
 ;; Takes a program in continuation passing style and converts all
-;; function calls into returns to the top-level that pass function,
-;; continuation, and args back.
+;; function applications into returns to the top-level that pass
+;; function, continuation, and args back.
 
 ;; input language:
 ;; tag | top-level-begin-define | self-eval | primitive | lambda | if | (A B) | apply | let
@@ -14,9 +14,9 @@
 
 (library
 
- (transforms return)
+ (transforms app)
 
- (export return-transform)
+ (export app-transform)
 
  (import (rnrs)
          (scheme-tools srfi-compat :1)
@@ -24,13 +24,13 @@
          (transforms syntax)
          (transforms utils))
 
- (define (return-transform e)
-   (cond [(tagged? e 'call) (return-application e)]
-         [(list? e) (map return-transform e)]
+ (define (app-transform e)
+   (cond [(tagged? e 'app) (app-application e)]
+         [(list? e) (map app-transform e)]
          [else e]))
 
- (define (return-application e)   
-   `(return 'call ,@(map return-transform (tag->expr e))))
+ (define (app-application e)   
+   `(make-app ,@(map app-transform (tag->expr e))))
 
  )
 
