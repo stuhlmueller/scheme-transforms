@@ -105,7 +105,7 @@
               [rvals (reverse vals)]
               [opt (first rvals)]
               [ops (drop rvals 1)])
-         `(tag (,opt ,(mc->exp mc) ,@ops) call))
+         `(tag (,opt ,(mc->exp mc) ,@ops) app))
        (cps (first es)
             (lambda (v)
               (cps-application* (rest es) (pair v vals) mc)))))
