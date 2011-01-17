@@ -9,7 +9,7 @@
          assignment-transform
          letrec-to-set
          redex-transform
-         call-transform
+         app-transform
          untag-transform
          transform)
 
