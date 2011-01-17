@@ -22,14 +22,14 @@
          (transforms return)
          (transforms untag))
 
- (define (transform expr reserved-words . with-returns)
+ (define (transform expr reserved-words with-returns)
   (let* ([a (letrec-to-set expr)]
          [b (assignment-transform a)]
          [c (cps-transform b reserved-words)]
          [d (redex-transform c)]
-         [e (if (null? with-returns)
-                (untag-transform d)
-                (return-transform d))]
+         [e (if with-returns
+                (return-transform d)
+                (untag-transform d))]
          [f (cc-transform e reserved-words)])
     f))
 
