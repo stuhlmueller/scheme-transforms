@@ -27,9 +27,9 @@
          [b (assignment-transform a)]
          [c (cps-transform b reserved-words)]
          [d (redex-transform c)]
-         [e (if (not (null? with-returns))
-                (return-transform d)
-                (untag-transform d))]
+         [e (if (null? with-returns)
+                (untag-transform d)
+                (return-transform d))]
          [f (cc-transform e reserved-words)])
     f))
 
