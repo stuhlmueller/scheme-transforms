@@ -47,3 +47,10 @@ The following sequence shows the interface for each transform:
 
     tag | top-level-begin-define | self-eval | primitive | lambda | if | (A B) | apply | let
 
+The untag transform can be applied at any point within this sequence:
+
+    tag | *
+
+    -- untag -->
+
+    *

@@ -5,10 +5,10 @@
 ;; Remove all tags
 
 ;; input language:
-;; tag | top-level-begin-define | self-eval | primitive | lambda | if | (A B) | apply | let
+;; tag | *
 
 ;; output language:
-;; top-level-begin-define | self-eval | primitive | lambda | if | (A B) | apply | let
+;; *
 
 (library
 
