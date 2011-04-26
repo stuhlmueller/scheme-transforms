@@ -30,62 +30,20 @@
          assert-with-info
          format
          pe
-         never?
          p-or)
  
  (import (rnrs)
-         (scheme-tools srfi-compat :1)
-         (only (scheme-tools external)
-               assert
-               gensym
-               eval
-               environment
-               parameterize
-               make-parameter
-               pretty-print
-               format))
+         (scheme-tools)
+         (scheme-tools srfi-compat :1))
 
  (define-syntax assert-with-info
    (syntax-rules ()
      ((_ v info) (begin (when (not v) (pretty-print info))
                         (assert v)))))
 
- (define (pe . args)
-   (for-each display args)) 
-
  (define (curry fun . const-args)
    (lambda args
      (apply fun (append const-args args))))
-
- (define (compose . fns)
-  (define (make-chain fn chain)
-    (lambda args
-      (call-with-values (lambda () (apply fn args)) chain)))
-  (reduce make-chain values fns))
-
- (define rest cdr)
- 
- (define pair cons)
- 
- (define true #t)
-
- (define false #f)
- 
- (define (true? x)
-   (not (eq? x false)))
- 
- (define (false? x)
-   (eq? x false))
- 
- (define (repeat n thunk)
-   (if (> n 0)
-       (pair (thunk) (repeat (- n 1) thunk))
-       (list) ))
- 
- (define (tagged-list? exp tag)
-   (if (pair? exp)
-       (eq? (car exp) tag)
-       false))
 
  (define (listify p)
    (cond [(null? p) '()]
@@ -102,13 +60,8 @@
  (define (contains vars var)
    (not (null? (both vars (list var)))))
 
- (define (union vals-a vals-b)
-   (lset-union eq? vals-a vals-b))
-
  (define (set-join lsts)
    (delete-duplicates (apply append lsts)))
-
- (define (never? _) #f)
 
  (define (p-or . preds)
    (lambda args

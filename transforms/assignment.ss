@@ -93,7 +93,7 @@
    (let ([formals (listify (lambda->args e))])
      (let-values ([(ism isu) (partition-vars formals (list (lambda->body e)))])
        `(lambda ,(lambda->args e)
-          ,(wrap-cells ism (amt (except (union vars ism) isu)
+          ,(wrap-cells ism (amt (except (union (list vars ism) equal?) isu)
                                 (lambda->body e)))))))
 
  (define (amt-set vars e)
