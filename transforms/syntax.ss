@@ -113,7 +113,6 @@
 
  (define (form? e)
    (or (tag? e)
-       (mem? e)
        (lambda? e)
        (quoted? e)
        (definition? e)
@@ -185,7 +184,7 @@
                                                                    (pair params bound-vars))))))
     ((if? sexpr)  (apply append (map (lambda (e) (free-variables e bound-vars)) (rest sexpr))))
     
-    (((p-or application? tag? mem? apply? set?) sexpr) (apply append (map (lambda (e) (free-variables e bound-vars)) sexpr)))
+    (((p-or application? tag? apply? set?) sexpr) (apply append (map (lambda (e) (free-variables e bound-vars)) sexpr)))
     ((symbol? sexpr) (if (memq sexpr bound-vars) '() (list sexpr)))
     (else '()) ))
 
