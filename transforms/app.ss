@@ -32,6 +32,7 @@
  (define (app-transform e)
    (cond [(blacklisted? e) (map app-transform (tag->expr e))]
          [(tagged? e 'app) (app-application e)]
+         [(tagged? e 'abort) (app-abort e)]
          [(list? e) (map app-transform e)]
          [else e]))
 
@@ -43,6 +44,9 @@
 
  (define (app-application e)
    `(make-application ,@(map app-transform (tag->expr e))))
+
+ (define (app-abort e)
+   `(make-abort))
 
  )
 
