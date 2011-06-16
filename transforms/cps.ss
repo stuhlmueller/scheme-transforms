@@ -177,7 +177,7 @@
                      (lambda (k . args) (k (apply ,p args)))))
            ps)))
 
- (define reserved-words '(set! let apply))
+ (define reserved-words '(set! let apply abort tag))
  
  ;; meaning of primitives: globally free variables that are assumed to
  ;; be Scheme functions
