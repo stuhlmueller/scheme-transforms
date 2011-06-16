@@ -21,6 +21,7 @@
      (cons 1 2)
      (not #t)
      (tag (not #t) 'tag1)
+     ((lambda (x) x) 1)
      ((lambda (y) ((lambda (f) (f 3)) (if #f (lambda (x) x) (lambda (x) y)))) 2)
      ((lambda (x) x) 'foo)
      (if (> 1 0) #t #f)
@@ -48,6 +49,11 @@
  (define begin-tests
    '(
      (begin 1 2 3)
+     (begin
+       ((lambda () 1)))
+     (begin
+       (define foo (lambda () 1))
+       (foo))
      (begin
        (define foo (lambda (n) (if (= n 0) 'ok (foo (- n 1)))))
        (foo 5))
