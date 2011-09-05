@@ -45,6 +45,7 @@
          letrec->body
          letrec->defns
          letrec?
+         local
          make-tag
          mapsub
          mem?
@@ -219,5 +220,8 @@
    (if (null? (rest exprs))
        (first exprs)
        `(begin ,@exprs)))
+
+ (define (local expr)
+   `((lambda () ,expr)))
  
  )
